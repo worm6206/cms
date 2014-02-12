@@ -1,303 +1,1274 @@
-#!/usr/bin/env python
+#@+leo-ver=5-thin
+#@+node:cmsxh.20131226100304.3661: * @file application
+#
+# -*- coding: utf-8 -*-
+'''
+Copyright © 2014 Chiaming Yen
+
+CMSimply is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+CMSimply is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with CMSimpiy. If not, see <http://www.gnu.org/licenses/>.
+
+***********************************************************************
+'''
+
+#@@language python
+#@@tabwidth -4
+
+#@+<<declarations>>
+#@+node:cmsxh.20131226100304.3662: ** <<declarations>> (application)
+import cherrypy
+import re
 import os
+import math
+import hashlib
+from cherrypy.lib.static import serve_file
+# use quote_plus() to generate URL
+import urllib.parse
+# use cgi.escape() to resemble php htmlspecialchars()
+# use cgi.escape() or html.escape to generate data for textarea tag, otherwise Editor can not deal with some Javascript code.
+import cgi
 
-def application(environ, start_response):
-    ctype = 'text/plain'
-    if environ['PATH_INFO'] == '/health':
-        response_body = "1"
-    elif environ['PATH_INFO'] == '/env':
-        response_body = ['%s: %s' % (key, value)
-                    for key, value in sorted(environ.items())]
-        response_body = '\n'.join(response_body)
+# get the current directory of the file
+_curdir = os.path.join(os.getcwd(), os.path.dirname(__file__))
+import sys
+sys.path.append(_curdir)
+
+if 'OPENSHIFT_REPO_DIR' in os.environ.keys():
+    inOpenshift = True
+else:
+    inOpenshift = False
+
+if inOpenshift:
+    # while program is executed in OpenShift
+    download_root_dir = os.environ['OPENSHIFT_DATA_DIR']
+    data_dir = os.environ['OPENSHIFT_DATA_DIR']
+else:
+    # while program is executed in localhost
+    download_root_dir = _curdir
+    data_dir = _curdir
+#@-<<declarations>>
+#@+others
+#@+node:cmsxh.20131226100304.3663: ** downloadlist_access_list
+def downloadlist_access_list(files, starti, endi):
+    # different extension files, associated links were provided
+    # popup window to view images, video or STL files, other files can be downloaded directly
+    # files are all the data to list, from starti to endi
+    # add file size
+    outstring = ""
+    for index in range(int(starti)-1, int(endi)):
+        fileName, fileExtension = os.path.splitext(files[index])
+        fileExtension = fileExtension.lower()
+        fileSize = sizeof_fmt(os.path.getsize(download_root_dir+"downloads/"+files[index]))
+        # images files
+        if fileExtension == ".png" or fileExtension == ".jpg" or fileExtension == ".gif":
+            outstring += '<input type="checkbox" name="filename" value="'+files[index]+'"><a href="javascript:;" onClick="window.open(\'/downloads/'+ \
+            files[index]+'\',\'images\', \'catalogmode\',\'scrollbars\')">'+files[index]+'</a> ('+str(fileSize)+')<br />'
+        # stl files
+        elif fileExtension == ".stl":
+            outstring += '<input type="checkbox" name="filename" value="'+files[index]+'"><a href="javascript:;" onClick="window.open(\'/static/viewstl.html?src=/downloads/'+ \
+            files[index]+'\',\'images\', \'catalogmode\',\'scrollbars\')">'+files[index]+'</a> ('+str(fileSize)+')<br />'
+        # flv files
+        elif fileExtension == ".flv":
+            outstring += '<input type="checkbox" name="filename" value="'+files[index]+'"><a href="javascript:;" onClick="window.open(\'/flvplayer?filepath=/downloads/'+ \
+            files[index]+'\',\'images\', \'catalogmode\',\'scrollbars\')">'+files[index]+'</a> ('+str(fileSize)+')<br />'
+        # direct download files
+        else:
+            outstring += "<input type='checkbox' name='filename' value='"+files[index]+"'><a href='/download/?filepath="+download_root_dir.replace('\\', '/')+ \
+            "downloads/"+files[index]+"'>"+files[index]+"</a> ("+str(fileSize)+")<br />"
+    return outstring
+#@+node:cmsxh.20140108172857.1763: ** sizeof_fmt
+def sizeof_fmt(num):
+    for x in ['bytes','KB','MB','GB']:
+        if num < 1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
+#@+node:cmsxh.20131226100304.3664: ** set_admin_css
+# set_admin_css for administrator
+def set_admin_css():
+    outstring = '''<!doctype html><html><head>
+<meta http-equiv="content-type" content="text/html;charset=utf-8">
+<title>CMSimply - Simple Cloud CMS</title> \
+<link rel="stylesheet" type="text/css" href="/static/cmsimply.css">'''+syntaxhighlight()
+    outstring += '''
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script type="text/javascript">
+$(function(){
+    $("ul.topmenu> li:has(ul) > a").append('<div class="arrow-right"></div>');
+    $("ul.topmenu > li ul li:has(ul) > a").append('<div class="arrow-right"></div>');
+});
+</script>
+'''
+    # SSL for OpenShift operation
+    if inOpenshift:
+        outstring += '''
+<script type="text/javascript">
+if ((location.href.search(/http:/) != -1) && (location.href.search(/login/) != -1)) \
+window.location= 'https://' + location.host + location.pathname + location.search;
+</script>
+'''
+    site_title, password = parse_config()
+    outstring += '''
+</head><header><h1>'''+site_title+'''</h1> \
+<confmenu>
+<ul>
+<li><a href="/">Home</a></li>
+<li><a href="/sitemap">SiteMap</a></li>
+<li><a href="/edit_page">Edit All</a></li>
+<li><a href="'''+cherrypy.url(qs=cherrypy.request.query_string)+'''&edit=1">Edit</a></li>
+<li><a href="/edit_config">Config</a></li>
+<li><a href="/search_form">Search</a></li>
+<li><a href="/imageuploadform">Image Upload</a></li>
+<li><a href="/fileuploadform">File Upload</a></li>
+<li><a href="/download_list">File List</a></li>
+<li><a href="/logout">Logoout</a></li>
+'''
+    outstring += '''
+</ul>
+</confmenu></header>
+'''
+    return outstring
+#@+node:cmsxh.20131226100304.3665: ** set_footer
+def set_footer():
+    # Extra consideration for cherrypy.url(qs=cherrypy.request.query_string) return no data
+    return "<footer> \
+        <a href='/edit_page'>Edit All</a>| \
+        <a href='"+cherrypy.url(qs=cherrypy.request.query_string)+"&edit=1'>Edit</a>| \
+        <a href='/edit_config'>Config</a> \
+        <a href='/login'>login</a>| \
+        <a href='/logout'>logout</a> \
+        <br />Powered by <a href='http://cmsimple.cycu.org'>CMSimply</a> \
+        </footer> \
+        </body></html>"
+#@+node:cmsxh.20131226100304.3666: ** file_get_contents
+def file_get_contents(filename):
+    # open file in utf-8 and return file content
+    with open(filename, encoding="utf-8") as file:
+        return file.read()
+#@+node:cmsxh.20131226100304.3667: ** search_content
+# use head title to search page content
+def search_content(head, page, search):
+    return page[head.index(search)]
+#@+node:cmsxh.20131226100304.3668: ** parse_content
+def parse_content():
+    if not os.path.isfile(data_dir+"content.htm"):
+        # create content.htm if there is no content.htm
+        File = open(data_dir+"content.htm", "w", encoding="utf-8")
+        File.write("<!doctype html><html><body><h1>head 1</h1>content 1</body></html>")
+        File.close()
+    subject = file_get_contents(data_dir+"content.htm")
+    # deal with content without heading
+    # replace subject content with special seperate string to avoid error 
+    subject = re.sub('#@CMSIMPLY_SPLIT@#', '井@CMSIMPLY_SPLIT@井', subject)
+    content_sep = '#@CMSIMPLY_SPLIT@#'
+    head_level = 3
+    content = re.split('</body>', subject)
+    result = re.sub('<h[1-'+str(head_level)+']>', content_sep, content[0])
+    # remove the first element contains html and body tags
+    data = result.split(content_sep)[1:]
+    head_list = []
+    level_list = []
+    page_list = []
+    order = 1
+    for index in range(len(data)):
+        #page_data = re.sub('</h[1-'+str(head_level)+']>', content_sep, data[index])
+        page_data = re.sub('</h', content_sep, data[index])
+        head = page_data.split(content_sep)[0]
+        order += 1
+        head_list.append(head)
+        # put level data into level variable
+        level = page_data.split(content_sep)[1][0]
+        level_list.append(level)
+        # remove  1>,  2> or 3>
+        page = page_data.split(content_sep)[1][2:]
+        page_list.append(page)
+    return head_list, level_list, page_list
+#@+node:cmsxh.20131226100304.3669: ** render_menu
+def render_menu(head, level, page, sitemap=0):
+    directory = ""
+    current_level = level[0]
+    if sitemap:
+        directory += "<ul>"
     else:
-        ctype = 'text/html'
-        response_body = '''<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-  <title>Welcome to OpenShift</title>
+        directory += "<ul id='css3menu1' class='topmenu'>"
+    for index in range(len(head)):
+        if level[index] > current_level:
+            directory += "<ul>"
+            directory += "<li><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+        elif level[index] == current_level:
+            if level[index] == 1:
+                if sitemap:
+                    directory += "<li><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+                else:
+                    directory += "<li class='topmenu'><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+            else:
+                directory += "<li><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+        else:
+            directory += "</li>"*(int(current_level) - int(level[index]))
+            directory += "</ul>"*(int(current_level) - int(level[index]))
+            if level[index] == 1:
+                if sitemap:
+                    directory += "<li><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+                else:
+                    directory += "<li class='topmenu'><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+            else:
+                directory += "<li><a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a>"
+        current_level = level[index]
+    directory += "</li></ul>"
+    return directory
+#@+node:cmsxh.20131226100304.3670: ** filebrowser
+def filebrowser():
+    return '''
+<script type="text/javascript">
+function wrFilebrowser (field_name, url, type, win) {
+poppedUpWin = win;
+inputField = field_name;
+if (type == "file") {type = "downloads"};
+var cmsURL = "/file_selector";    
 
+if (cmsURL.indexOf("?") < 0) {
+    cmsURL = cmsURL + "?type="+ type ;
+}
+else {
+    cmsURL = cmsURL + "&type="+type ;
+}
 
+tinyMCE.activeEditor.windowManager.open(
+    {
+        file  : cmsURL,
+        width : 800,
+        height : 600,
+        resizable : "yes",
+        inline : "yes",
+        close_previous : "no",
+        popup_css : false,
+        scrollbars : "yes"
+      },
+      {
+        window : win,
+        input : field_name
+      }
+);
+return false;
+}
+'''
+#@+node:cmsxh.20131226100304.3671: ** syntaxhighlight
+def syntaxhighlight():
+    return '''
+<script type="text/javascript" src="/static/syntaxhighlighter/shCore.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJScript.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJava.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPython.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushSql.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushXml.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPhp.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCpp.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCss.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCsharp.js"></script>
+<link type="text/css" rel="stylesheet" href="/static/syntaxhighlighter/css/shCoreDefault.css"/>
+<script type="text/javascript">SyntaxHighlighter.all();</script>
+'''
+#@+node:cmsxh.20131226100304.3672: ** editorhead
+def editorhead():
+    return '''
+<script language="javascript" type="text/javascript" src="/static/tinymce3/tiny_mce/tiny_mce.js"></script>
+<script type="text/javascript" src="/static/tinymce3/init.js"></script>
+'''
+#@+node:cmsxh.20131226100304.3673: ** tinymceinit
+def tinymceinit():
+    return '''
+<script language="javascript" type="text/javascript">
+function tinyMCE_initialize0() {
+    tinyMCE_instantiateByClasses('simply-editor', {
+// General options
+
+theme : "advanced",
+width : "800",
+height : "600",
+element_format : "html",
+language : "en",
+plugins : "autosave,pagebreak,style,layer,table,save,advimage,advlink,advhr,emotions,iespell,"
+        + "insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,"
+        + "noneditable,visualchars,nonbreaking,xhtmlxtras,template,wordcount,media,lists,syntaxhl",
+
+// Theme options
+theme_advanced_buttons1 : "save,|,fullscreen,code,formatselect,fontselect,fontsizeselect,styleselect,syntaxhl",
+theme_advanced_buttons2 : "bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,cut,copy,paste,pastetext,pasteword,|,bullist,numlist,outdent,indent,blockquote",
+theme_advanced_buttons3 : "undo,redo,|,link,unlink,anchor,image,media,cleanup,|,hr,removeformat,visualaid,|,forecolor,backcolor,|,search,replace,|,charmap",
+theme_advanced_buttons4 : "emotions,sub,sup,|,tablecontrols,insertdate,inserttime,help",
+theme_advanced_toolbar_location : "top",
+theme_advanced_toolbar_align : "left",
+theme_advanced_statusbar_location : "bottom",
+theme_advanced_resizing : true,
+theme_advanced_blockformats : "h1,h2,h3,p,div,h4,h5,h6,blockquote,dt,dd,code",
+theme_advanced_font_sizes : "8px=8px, 10px=10px,12px=12px, 14px=14px, 16px=16px, 18px=18px,20px=20px,24px=24px,36px=36px",
+
+content_css : "/static/cmsimply.css",
+//link and image list
+external_image_list_url: "/static/tinymce3/cms_image_list.js",
+external_link_list_url: "/static/tinymce3/cms_link_list.js",
+
+// Extra
+plugin_insertdate_dateFormat: "%d-%m-%Y",
+plugin_insertdate_timeFormat: "%H:%M:%S",
+inline_styles : true,
+apply_source_formatting : true,
+relative_urls : true,
+convert_urls: false,
+entity_encoding : "raw",
+
+file_browser_callback: "wrFilebrowser" ,
+fullscreen_new_window : false ,
+fullscreen_settings : {
+theme_advanced_buttons1: "save,|,fullscreen,code,|,formatselect,fontselect,fontsizeselect,styleselect,bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,cut,copy,paste,pastetext,pasteword,|,bullist,numlist,outdent,indent,blockquote,|,undo,redo",
+theme_advanced_buttons2 : "link,unlink,anchor,image,media,cleanup,|,hr,removeformat,visualaid,|,forecolor,backcolor,|,search,replace,|,charmap,emotions,|,sub,sup,tablecontrols,insertdate,inserttime,|,help",
+theme_advanced_buttons3 : "",
+theme_advanced_buttons4 : ""
+}
+});
+}
+</script>
+'''
+#@+node:cmsxh.20131226100304.3674: ** editorfoot
+def editorfoot():
+    return '''<body id="body"  onload="tinyMCE_initialize0();">'''
+#@+node:cmsxh.20131226100304.3675: ** tinymce_editor
+def tinymce_editor(menu_input=None, editor_content=None, page_order=None):
+    files = os.listdir(download_root_dir+"downloads/")
+    link_list = ""
+    image_list = ""
+    for index in range(len(files)):
+        file_url = "/download/?filepath="+download_root_dir.replace('\\', '/')+"downloads/"+files[index]
+        link_list += "['"+files[index]+"', '"+file_url+"']"
+        if index != len(files)-1:
+            link_list += ","
+    # deal with image link
+    images = os.listdir(download_root_dir+"images/")
+    for index in range(len(images)):
+        image_url = "/images/"+images[index]
+        image_list += "['"+images[index]+"', '"+image_url+"']"
+        if index != len(images)-1:
+            image_list += ","
+    sitecontent =file_get_contents(data_dir+"content.htm")
+    editor = set_admin_css()+editorhead()+filebrowser()+'''
+var myImageList = new Array('''+image_list+''');
+var myLinkList = new Array('''+link_list+''');
+</script>'''+tinymceinit()+'''</head>'''+editorfoot()
+    # edit all pages
+    if page_order == None:
+        outstring = editor + "<div class='container'><nav>"+ \
+            menu_input+"</nav><section><form method='post' action='savePage'> \
+     <textarea class='simply-editor' name='page_content' cols='50' rows='15'>"+editor_content+"</textarea> \
+     <input type='submit' value='save'></form></section></body></html>"
+    else:
+        # add viewpage button wilie single page editing
+        head, level, page = parse_content()
+        outstring = editor + "<div class='container'><nav>"+ \
+            menu_input+"</nav><section><form method='post' action='ssavePage'> \
+     <textarea class='simply-editor' name='page_content' cols='50' rows='15'>"+editor_content+"</textarea> \
+<input type='hidden' name='page_order' value='"+str(page_order)+"'> \
+     <input type='submit' value='save'>"
+        outstring += '''<input type=button onClick="location.href='get_page?heading='''+head[page_order]+ \
+            ''''" value='viewpage'></form></section></body></html>'''
+    return outstring
+#@+node:cmsxh.20131226100304.3676: ** parse_config
+def parse_config():
+    if not os.path.isfile(data_dir+"config"):
+        # create config file if there is no config file
+        file = open(data_dir+"config", "w", encoding="utf-8")
+        # default password is admin
+        password="admin"
+        hashed_password = hashlib.sha512(password.encode('utf-8')).hexdigest()
+        file.write("siteTitle:CMSimply - Simple Cloud CMS\npassword:"+hashed_password)
+        file.close()
+    config = file_get_contents(data_dir+"config")
+    config_data = config.split("\n")
+    site_title = config_data[0].split(":")[1]
+    password = config_data[1].split(":")[1]
+    return site_title, password
+#@+node:cmsxh.20131226100304.3677: ** file_selector_script
+def file_selector_script():
+    return '''
+<script type="text/javascript" src="/static/tinymce3/tiny_mce/tiny_mce_popup.js"></script>
+<script language="javascript" type="text/javascript">
+
+var FileBrowserDialogue = {
+    
+    init : function () {
+        // Nothing to do
+    },
+
+   
+    submit : function (url) {
+        var URL = url;
+        var win = tinyMCEPopup.getWindowArg("window");
+        var input = win.document.getElementById(tinyMCEPopup.getWindowArg("input"));
+        win.document.getElementById(tinyMCEPopup.getWindowArg("input")).value = URL;
+
+        input.value = URL;
+        if (input.onchange) input.onchange();
+
+        tinyMCEPopup.close();
+    }
+}
+
+tinyMCEPopup.onInit.add(FileBrowserDialogue.init, FileBrowserDialogue);
+
+function setLink(link){
+
+    FileBrowserDialogue.submit(link);
+    return true;
+}
+</script>
+'''
+#@+node:cmsxh.20131226100304.3678: ** file_lister
+def file_lister(directory, type=None, page=1, item_per_page=10):
+    files = os.listdir(download_root_dir+directory)
+    total_rows = len(files)
+    totalpage = math.ceil(total_rows/int(item_per_page))
+    starti = int(item_per_page) * (int(page) - 1) + 1
+    endi = starti + int(item_per_page) - 1
+    outstring = file_selector_script()
+    notlast = False
+    if total_rows > 0:
+        outstring += "<br />"
+        if (int(page) * int(item_per_page)) < total_rows:
+            notlast = True
+        if int(page) > 1:
+            outstring += "<a href='"
+            outstring += "/file_selector?type="+type+"&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'><<</a> "
+            page_num = int(page) - 1
+            outstring += "<a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>previous page</a> "
+        span = 10
+        for index in range(int(page)-span, int(page)+span):
+        #for ($j=$page-$range;$j<$page+$range;$j++)
+            if index>= 0 and index< totalpage:
+                page_now = index + 1 
+                if page_now == int(page):
+                    outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
+                else:
+                    outstring += "<a href='"
+                    outstring += "/file_selector?type="+type+"&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                    outstring += "'>"+str(page_now)+"</a> "
+
+        if notlast == True:
+            nextpage = int(page) + 1
+            outstring += " <a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>next page</a>"
+            outstring += " <a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>>></a><br /><br />"
+        if (int(page) * int(item_per_page)) < total_rows:
+            notlast = True
+            if type == "downloads":
+                outstring += downloadselect_access_list(files, starti, endi)+"<br />"
+            else:
+                outstring += imageselect_access_list(files, starti, endi)+"<br />"
+        else:
+            outstring += "<br /><br />"
+            if type == "downloads":
+                outstring += downloadselect_access_list(files, starti, total_rows)+"<br />"
+            else:
+                outstring += imageselect_access_list(files, starti, total_rows)+"<br />"
+        if int(page) > 1:
+            outstring += "<a href='"
+            outstring += "/file_selector?type="+type+"&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'><<</a> "
+            page_num = int(page) - 1
+            outstring += "<a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>previous page</a> "
+        span = 10
+        for index in range(int(page)-span, int(page)+span):
+        #for ($j=$page-$range;$j<$page+$range;$j++)
+            if index >=0 and index < totalpage:
+                page_now = index + 1
+                if page_now == int(page):
+                    outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
+                else:
+                    outstring += "<a href='"
+                    outstring += "/file_selector?type="+type+"&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                    outstring += "'>"+str(page_now)+"</a> "
+        if notlast == True:
+            nextpage = int(page) + 1
+            outstring += " <a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>next page</a>"
+            outstring += " <a href='"
+            outstring += "/file_selector?type="+type+"&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+            outstring += "'>>></a>"
+    else:
+        outstring += "no data!"
+
+    if type == "downloads":
+        return outstring+"<br /><br /><a href='/fileuploadform'>file upload</a>"
+    else:
+        return outstring+"<br /><br /><a href='/imageuploadform'>image upload</a>"
+#@+node:cmsxh.20131226100304.3679: ** downloadselect_access_list
+def downloadselect_access_list(files, starti, endi):
+    outstring = ""
+    for index in range(int(starti)-1, int(endi)):
+        fileName, fileExtension = os.path.splitext(files[index])
+        fileSize = os.path.getsize(download_root_dir+"/downloads/"+files[index])
+        outstring += '''<input type="checkbox" name="filename" value="'''+files[index]+'''"><a href="#" onclick='window.setLink("/download/?filepath='''+ \
+        download_root_dir.replace('\\', '/')+'''/downloads/'''+files[index]+'''",0); return false;'>'''+ \
+        files[index]+'''</a> ('''+str(sizeof_fmt(fileSize))+''')<br />'''
+    return outstring
+#@+node:cmsxh.20131226100304.3680: ** imageselect_access_list
+def imageselect_access_list(files, starti, endi):
+    outstring = '''<head>
 <style>
-
-/*!
- * Bootstrap v3.0.0
- *
- * Copyright 2013 Twitter, Inc
- * Licensed under the Apache License v2.0
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Designed and built with all the love in the world @twitter by @mdo and @fat.
- */
-
-  .logo {
-    background-size: cover;
-    height: 58px;
-    width: 180px;
-    margin-top: 6px;
-    background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNC4wLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDQzMzYzKSAgLS0+DQo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMTgwcHgiDQoJIGhlaWdodD0iNThweCIgdmlld0JveD0iLTEyNy4zOTEgNDMyLjAxOSAxODAgNTgiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgLTEyNy4zOTEgNDMyLjAxOSAxODAgNTgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGcgaWQ9IkxheWVyXzEiIGRpc3BsYXk9Im5vbmUiPg0KCTxnIGRpc3BsYXk9ImlubGluZSI+DQoJCTxwYXRoIGQ9Ik0tMTIxLjM4NSw0MzguNzQ5Yy0wLjQxNiwwLjM2MS0xLjAwNiwwLjU0MS0xLjc3MSwwLjU0MWgtMi43NzR2LTdoMi44NzRjMC42MTIsMCwxLjA5OSwwLjE1NSwxLjQ2MiwwLjQ2NA0KCQkJYzAuMzYyLDAuMzEsMC41NDQsMC43NiwwLjU0NCwxLjM1M2MwLDAuMzU5LTAuMDg0LDAuNjUxLTAuMjUzLDAuODc0Yy0wLjE2OCwwLjIyMy0wLjM3OCwwLjM5OC0wLjYyOSwwLjUyNA0KCQkJYzAuMTM5LDAuMDQsMC4yNzgsMC4xMDIsMC40MTcsMC4xODVzMC4yNjUsMC4xOTIsMC4zNzcsMC4zMjZjMC4xMTIsMC4xMzMsMC4yMDQsMC4yOTMsMC4yNzMsMC40OHMwLjEwNCwwLjQwMSwwLjEwNCwwLjY0MQ0KCQkJQy0xMjAuNzYxLDQzNy44NTItMTIwLjk2OSw0MzguMzg5LTEyMS4zODUsNDM4Ljc0OXogTS0xMjIuMzEyLDQzMy41MTRjLTAuMTQ2LTAuMTc2LTAuMzk2LTAuMjY0LTAuNzUtMC4yNjRoLTEuODh2MS44aDEuODgNCgkJCWMwLjE3MywwLDAuMzIyLTAuMDI0LDAuNDQ1LTAuMDc0YzAuMTIzLTAuMDUsMC4yMjMtMC4xMTYsMC4zLTAuMTk5YzAuMDc3LTAuMDgzLDAuMTMzLTAuMTc3LDAuMTctMC4yODNzMC4wNTUtMC4yMTUsMC4wNTUtMC4zMjgNCgkJCUMtMTIyLjA5MSw0MzMuOTA2LTEyMi4xNjUsNDMzLjY4OS0xMjIuMzEyLDQzMy41MTR6IE0tMTIyLjEyMSw0MzYuMzJjLTAuMjE0LTAuMjA3LTAuNTItMC4zMS0wLjkyLTAuMzFoLTEuOXYyLjMyaDEuODcNCgkJCWMwLjQ2NiwwLDAuNzk1LTAuMTA2LDAuOTg1LTAuMzJzMC4yODUtMC40OTQsMC4yODUtMC44NEMtMTIxLjgwMSw0MzYuODEtMTIxLjkwOCw0MzYuNTI3LTEyMi4xMjEsNDM2LjMyeiIvPg0KCQk8cGF0aCBkPSJNLTExNi4yODEsNDM5LjI5di0wLjUwNmMtMC4xMzQsMC4xOTUtMC4zMTgsMC4zNDctMC41NTUsMC40NTVzLTAuNDkyLDAuMTYyLTAuNzY1LDAuMTYyYy0wLjYxMywwLTEuMDc4LTAuMTk2LTEuMzk1LTAuNTkNCgkJCWMtMC4zMTYtMC4zOTMtMC40NzUtMC45OC0wLjQ3NS0xLjc2di0zLjAxaDEuMDR2Mi45NjNjMCwwLjUzMiwwLjA5NSwwLjkwNSwwLjI4NCwxLjExN2MwLjE4OSwwLjIxMywwLjQ1MywwLjMxOSwwLjc5MiwwLjMxOQ0KCQkJYzAuMzQ1LDAsMC42MS0wLjExNiwwLjc5Ni0wLjM0OWMwLjE4Ni0wLjIzMywwLjI3OS0wLjU2MiwwLjI3OS0wLjk4OHYtMy4wNjNoMS4wNHY1LjI1SC0xMTYuMjgxeiIvPg0KCQk8cGF0aCBkPSJNLTExMi42OTcsNDMzLjE2NWMtMC4xMywwLjEzLTAuMjg1LDAuMTk1LTAuNDY1LDAuMTk1Yy0wLjE4NywwLTAuMzQ1LTAuMDY1LTAuNDc1LTAuMTk1cy0wLjE5NS0wLjI4NS0wLjE5NS0wLjQ2NQ0KCQkJYzAtMC4xODcsMC4wNjUtMC4zNDUsMC4xOTUtMC40NzVzMC4yODgtMC4xOTUsMC40NzUtMC4xOTVjMC4xOCwwLDAuMzM1LDAuMDY1LDAuNDY1LDAuMTk1czAuMTk1LDAuMjg5LDAuMTk1LDAuNDc1DQoJCQlDLTExMi41MDEsNDMyLjg4LTExMi41NjcsNDMzLjAzNS0xMTIuNjk3LDQzMy4xNjV6IE0tMTEzLjY4Miw0MzkuMjl2LTUuMjVoMS4wNHY1LjI1SC0xMTMuNjgyeiIvPg0KCQk8cGF0aCBkPSJNLTExMS4wMzEsNDM5LjI5di02Ljc1bDEuMDQtMC41NHY3LjI5SC0xMTEuMDMxeiIvPg0KCQk8cGF0aCBkPSJNLTEwNS45MjEsNDM5LjE2Yy0wLjEyNywwLjA3My0wLjI3NSwwLjEzMS0wLjQ0NSwwLjE3NWMtMC4xNywwLjA0My0wLjM1OCwwLjA2NS0wLjU2NSwwLjA2NQ0KCQkJYy0wLjM2NywwLTAuNjU1LTAuMTEzLTAuODY1LTAuMzRzLTAuMzE1LTAuNTc3LTAuMzE1LTEuMDV2LTMuMDNoLTAuNzV2LTAuOTRoMC43NXYtMS41bDEuMDEtMC41NHYyLjA0aDEuM3YwLjk0aC0xLjN2Mi44NQ0KCQkJYzAsMC4yNDcsMC4wNDIsMC40MTQsMC4xMjUsMC41YzAuMDgzLDAuMDg3LDAuMjIyLDAuMTMsMC40MTUsMC4xM2MwLjEzMywwLDAuMjctMC4wMjEsMC40MS0wLjA2NXMwLjI1Ni0wLjA5MSwwLjM1LTAuMTQ1DQoJCQlMLTEwNS45MjEsNDM5LjE2eiIvPg0KCQk8cGF0aCBkPSJNLTk3LjQ1Miw0MzcuODA1Yy0wLjEyLDAuMzQzLTAuMjg3LDAuNjMzLTAuNSwwLjg3Yy0wLjIxMywwLjIzNy0wLjQ2MywwLjQxNy0wLjc1LDAuNTQNCgkJCWMtMC4yODcsMC4xMjQtMC42LDAuMTg1LTAuOTQsMC4xODVjLTAuMzMzLDAtMC42NC0wLjA2NS0wLjkyLTAuMTk1Yy0wLjI4LTAuMTMtMC41MjMtMC4zMTUtMC43My0wLjU1NQ0KCQkJYy0wLjIwNy0wLjI0LTAuMzY4LTAuNTI2LTAuNDg1LTAuODZzLTAuMTc1LTAuNzA3LTAuMTc1LTEuMTJjMC0wLjQyNiwwLjA2LTAuODEsMC4xOC0xLjE1czAuMjg1LTAuNjI4LDAuNDk1LTAuODY1DQoJCQljMC4yMS0wLjIzNywwLjQ1Ny0wLjQxNywwLjc0LTAuNTRjMC4yODQtMC4xMjQsMC41OTItMC4xODUsMC45MjUtMC4xODVjMC4zMzMsMCwwLjY0MywwLjA2NSwwLjkzLDAuMTk1czAuNTM1LDAuMzEyLDAuNzQ1LDAuNTQ1DQoJCQlzMC4zNzQsMC41MTksMC40OSwwLjg1NWMwLjExNiwwLjMzNywwLjE3NSwwLjcwOCwwLjE3NSwxLjExNUMtOTcuMjcxLDQzNy4wNzMtOTcuMzMyLDQzNy40NjItOTcuNDUyLDQzNy44MDV6IE0tOTguNjY3LDQzNS4zODUNCgkJCWMtMC4yMzctMC4zMTctMC41NjUtMC40NzUtMC45ODUtMC40NzVjLTAuMzk0LDAtMC43MDIsMC4xNTgtMC45MjUsMC40NzVjLTAuMjIzLDAuMzE2LTAuMzM1LDAuNzM1LTAuMzM1LDEuMjU1DQoJCQljMCwwLjU4LDAuMTIsMS4wMjEsMC4zNiwxLjMyNWMwLjI0LDAuMzA0LDAuNTU3LDAuNDU1LDAuOTUsMC40NTVjMC4xOTMsMCwwLjM3LTAuMDQ2LDAuNTMtMC4xNA0KCQkJYzAuMTYtMC4wOTQsMC4yOTYtMC4yMTksMC40MS0wLjM3NWMwLjExMy0wLjE1NywwLjItMC4zNDIsMC4yNi0wLjU1NXMwLjA5LTAuNDQsMC4wOS0wLjY4DQoJCQlDLTk4LjMxMiw0MzYuMTMtOTguNDMsNDM1LjcwMi05OC42NjcsNDM1LjM4NXoiLz4NCgkJPHBhdGggZD0iTS05Mi44MTIsNDM5LjI5di0yLjk2M2MwLTAuNTMyLTAuMDk1LTAuOTA0LTAuMjg0LTEuMTE3Yy0wLjE4OS0wLjIxMy0wLjQ1My0wLjMxOS0wLjc5MS0wLjMxOQ0KCQkJYy0wLjM0NSwwLTAuNjExLDAuMTE2LTAuNzk2LDAuMzQ5Yy0wLjE4NiwwLjIzMy0wLjI3OSwwLjU2Mi0wLjI3OSwwLjk4OHYzLjA2M2gtMS4wNHYtNS4yNWgxLjA0djAuNTA2DQoJCQljMC4xMzMtMC4xOTUsMC4zMTgtMC4zNDcsMC41NTUtMC40NTVzMC40OTItMC4xNjIsMC43NjUtMC4xNjJjMC42MTMsMCwxLjA3OCwwLjE5NywxLjM5NSwwLjU5YzAuMzE2LDAuMzk0LDAuNDc1LDAuOTgsMC40NzUsMS43Ng0KCQkJdjMuMDFILTkyLjgxMnoiLz4NCgk8L2c+DQo8L2c+DQo8ZyBpZD0iTGF5ZXJfNiI+DQoJPGc+DQoJCTxwYXRoIGQ9Ik0tMTIyLjI2Niw0MzguOTg0Yy0wLjM5LDAuMzQ0LTAuOTU1LDAuNTE2LTEuNjk1LDAuNTE2aC0yLjUxdi03aDIuNTZjMC4yOCwwLDAuNTM1LDAuMDM1LDAuNzY1LDAuMTA1DQoJCQlzMC40MywwLjE3NiwwLjYsMC4zMTljMC4xNywwLjE0MywwLjMwMSwwLjMyNCwwLjM5NSwwLjU0NGMwLjA5MywwLjIyLDAuMTQsMC40NzksMC4xNCwwLjc3OWMwLDAuMzg2LTAuMDkzLDAuNjkzLTAuMjgsMC45MjMNCgkJCWMtMC4xODcsMC4yMy0wLjQzLDAuMzk4LTAuNzMsMC41MDRjMC4xNiwwLjA0LDAuMzIsMC4xMDIsMC40OCwwLjE4NWMwLjE2LDAuMDgzLDAuMzAzLDAuMTk0LDAuNDMsMC4zMzENCgkJCWMwLjEyNywwLjEzNywwLjIzLDAuMzA3LDAuMzEsMC41MTFzMC4xMiwwLjQ0NiwwLjEyLDAuNzI2Qy0xMjEuNjgxLDQzOC4xMjEtMTIxLjg3NSw0MzguNjQxLTEyMi4yNjYsNDM4Ljk4NHogTS0xMjMuMDcxLDQzMy41MDQNCgkJCWMtMC4xODctMC4xOTYtMC40NzctMC4yOTQtMC44Ny0wLjI5NGgtMS43NXYyLjE3aDEuNjljMC40MzMsMCwwLjc0My0wLjEwOCwwLjkzLTAuMzIzYzAuMTg3LTAuMjE2LDAuMjgtMC40NzYsMC4yOC0wLjc4MQ0KCQkJQy0xMjIuNzkxLDQzMy45NTctMTIyLjg4NCw0MzMuNy0xMjMuMDcxLDQzMy41MDR6IE0tMTIyLjg2MSw0MzYuNDVjLTAuMjY3LTAuMjQtMC42My0wLjM2LTEuMDktMC4zNmgtMS43NHYyLjdoMS43OA0KCQkJYzAuNTI2LDAsMC45LTAuMTIsMS4xMi0wLjM2YzAuMjItMC4yNCwwLjMzLTAuNTYsMC4zMy0wLjk2Qy0xMjIuNDYsNDM3LjAzLTEyMi41OTQsNDM2LjY5LTEyMi44NjEsNDM2LjQ1eiIvPg0KCQk8cGF0aCBkPSJNLTExNy4xMjEsNDM5LjV2LTAuNjRjLTAuMTUzLDAuMjItMC4zNSwwLjQtMC41OSwwLjU0cy0wLjUyNywwLjIxLTAuODYsMC4yMWMtMC4yOCwwLTAuNTM0LTAuMDQyLTAuNzYtMC4xMjUNCgkJCWMtMC4yMjctMC4wODMtMC40Mi0wLjIxMy0wLjU4LTAuMzljLTAuMTYtMC4xNzctMC4yODMtMC40LTAuMzctMC42N2MtMC4wODctMC4yNy0wLjEzLTAuNTk1LTAuMTMtMC45NzV2LTMuMmgwLjc2djMuMDc3DQoJCQljMCwwLjU2OCwwLjEwMSwwLjk4NCwwLjMwNCwxLjI0OHMwLjUxMywwLjM5NiwwLjkzMSwwLjM5NmMwLjM2NSwwLDAuNjcyLTAuMTMsMC45MjEtMC4zOTFzMC4zNzQtMC42NzgsMC4zNzQtMS4yNTJ2LTMuMDc3aDAuNzYNCgkJCXY1LjI1SC0xMTcuMTIxeiIvPg0KCQk8cGF0aCBkPSJNLTExMy45MDYsNDMzLjE1NWMtMC4xMDMsMC4xMDQtMC4yMjUsMC4xNTUtMC4zNjUsMC4xNTVjLTAuMTUzLDAtMC4yODQtMC4wNTItMC4zOS0wLjE1NQ0KCQkJYy0wLjEwNi0wLjEwMy0wLjE2LTAuMjI4LTAuMTYtMC4zNzVjMC0wLjE1MywwLjA1My0wLjI4MSwwLjE2LTAuMzg1czAuMjM3LTAuMTU1LDAuMzktMC4xNTVjMC4xNCwwLDAuMjYyLDAuMDUxLDAuMzY1LDAuMTU1DQoJCQljMC4xMDQsMC4xMDQsMC4xNTUsMC4yMzIsMC4xNTUsMC4zODVDLTExMy43NTEsNDMyLjkyNy0xMTMuODAzLDQzMy4wNTItMTEzLjkwNiw0MzMuMTU1eiBNLTExNC42NjEsNDM5LjV2LTUuMjVoMC43NnY1LjI1DQoJCQlILTExNC42NjF6Ii8+DQoJCTxwYXRoIGQ9Ik0tMTEyLjE1MSw0MzkuNXYtNi44N2wwLjc2LTAuNDJ2Ny4yOUgtMTEyLjE1MXoiLz4NCgkJPHBhdGggZD0iTS0xMDguNzIxLDQzNC44OXYzLjQxMmMwLDAuMjMyLDAuMDM5LDAuMzk2LDAuMTE1LDAuNDg5YzAuMDc3LDAuMDkzLDAuMjE1LDAuMTQsMC40MTUsMC4xNA0KCQkJYzAuMTUzLDAsMC4yODUtMC4wMTIsMC4zOTUtMC4wMzVzMC4yMjUtMC4wNjIsMC4zNDUtMC4xMTVsLTAuMDUsMC42NWMtMC4xNDcsMC4wNi0wLjI5NSwwLjEwNS0wLjQ0NSwwLjEzNQ0KCQkJYy0wLjE1LDAuMDMtMC4zMjUsMC4wNDUtMC41MjUsMC4wNDVjLTAuMzI5LDAtMC41NzktMC4wODgtMC43NTEtMC4yNjRjLTAuMTcyLTAuMTc2LTAuMjU4LTAuNDg0LTAuMjU4LTAuOTIzdi0zLjUzMmgtMC42NXYtMC42NA0KCQkJaDAuNjV2LTEuNjJsMC43Ni0wLjQydjIuMDRoMS4zdjAuNjRILTEwOC43MjF6Ii8+DQoJCTxwYXRoIGQ9Ik0tOTkuMjcxLDQzOC4wMjVjLTAuMTIsMC4zNDQtMC4yODQsMC42MzMtMC40OSwwLjg3cy0wLjQ1LDAuNDE1LTAuNzMsMC41MzVjLTAuMjgsMC4xMi0wLjU4LDAuMTgtMC45LDAuMTgNCgkJCXMtMC42MTktMC4wNTgtMC44OTUtMC4xNzVjLTAuMjc3LTAuMTE3LTAuNTE1LTAuMjktMC43MTUtMC41MmMtMC4yLTAuMjMtMC4zNTgtMC41MTUtMC40NzUtMC44NTVzLTAuMTc1LTAuNzMzLTAuMTc1LTEuMTgNCgkJCWMwLTAuNDQ2LDAuMDYtMC44NCwwLjE4LTEuMThjMC4xMi0wLjM0LDAuMjgzLTAuNjI1LDAuNDktMC44NTVjMC4yMDctMC4yMywwLjQ1LTAuNDA1LDAuNzMtMC41MjVjMC4yOC0wLjEyLDAuNTgtMC4xOCwwLjktMC4xOA0KCQkJYzAuMzIsMCwwLjYxOCwwLjA1NywwLjg5NSwwLjE3YzAuMjc2LDAuMTEzLDAuNTE1LDAuMjgzLDAuNzE1LDAuNTFjMC4yLDAuMjI3LDAuMzU4LDAuNTA5LDAuNDc1LDAuODQ1DQoJCQljMC4xMTcsMC4zMzcsMC4xNzUsMC43MjksMC4xNzUsMS4xNzVDLTk5LjA5MSw0MzcuMjg3LTk5LjE1MSw0MzcuNjgyLTk5LjI3MSw0MzguMDI1eiBNLTEwMC4yNyw0MzUuMjk3DQoJCQljLTAuMjc5LTAuMzQ1LTAuNjQ4LTAuNTE4LTEuMTA2LTAuNTE4Yy0wLjQ1OCwwLTAuODI2LDAuMTczLTEuMTAyLDAuNTE4Yy0wLjI3NiwwLjM0NS0wLjQxNCwwLjg2Ni0wLjQxNCwxLjU2Mg0KCQkJYzAsMC42OTcsMC4xMzgsMS4yMjMsMC40MTQsMS41NzhzMC42NDMsMC41MzMsMS4xMDIsMC41MzNjMC40NTgsMCwwLjgyNy0wLjE3OCwxLjEwNi0wLjUzM2MwLjI3OS0wLjM1NSwwLjQxOC0wLjg4MSwwLjQxOC0xLjU3OA0KCQkJQy05OS44NTEsNDM2LjE2NC05OS45OTEsNDM1LjY0My0xMDAuMjcsNDM1LjI5N3oiLz4NCgkJPHBhdGggZD0iTS05NC40MjEsNDM5LjV2LTMuMDc3YzAtMC41NjgtMC4xMDItMC45ODMtMC4zMDQtMS4yNDhjLTAuMjAyLTAuMjY0LTAuNTEzLTAuMzk2LTAuOTMxLTAuMzk2DQoJCQljLTAuMzY1LDAtMC42NzIsMC4xMy0wLjkyMSwwLjM5MXMtMC4zNzQsMC42NzgtMC4zNzQsMS4yNTJ2My4wNzdoLTAuNzZ2LTUuMjVoMC43NnYwLjY0YzAuMTUzLTAuMjIsMC4zNS0wLjQsMC41OS0wLjU0DQoJCQljMC4yNC0wLjE0LDAuNTI2LTAuMjEsMC44Ni0wLjIxYzAuMjgsMCwwLjUzMywwLjA0MiwwLjc2LDAuMTI1czAuNDIsMC4yMTMsMC41OCwwLjM5YzAuMTYsMC4xNzcsMC4yODMsMC40LDAuMzcsMC42Nw0KCQkJYzAuMDg2LDAuMjcsMC4xMywwLjU5NSwwLjEzLDAuOTc1djMuMkgtOTQuNDIxeiIvPg0KCTwvZz4NCjwvZz4NCjxnIGlkPSJMYXllcl81Ij4NCgk8Zz4NCgkJPHBhdGggZmlsbD0iI0RCMjEyRiIgZD0iTS0xMTkuMDYzLDQ2NS42OThsLTQuNjA0LDEuNjc4YzAuMDU5LDAuNzM4LDAuMTg1LDEuNDY2LDAuMzY0LDIuMTgxbDQuMzc2LTEuNTkyDQoJCQlDLTExOS4wNjgsNDY3LjIyNC0xMTkuMTIsNDY2LjQ2Mi0xMTkuMDYzLDQ2NS42OTgiLz4NCgkJPGc+DQoJCQk8Zz4NCgkJCQk8cGF0aCBmaWxsPSIjREIyMTJGIiBkPSJNLTk4LjcxLDQ2MC42MDZjLTAuMzIxLTAuNjYzLTAuNjkzLTEuMzAzLTEuMTIyLTEuOTA1bC00LjYwNiwxLjY3NQ0KCQkJCQljMC41MzgsMC41NDcsMC45ODYsMS4xNjQsMS4zNTQsMS44MjNMLTk4LjcxLDQ2MC42MDZ6Ii8+DQoJCQk8L2c+DQoJCQk8Zz4NCgkJCQk8cGF0aCBmaWxsPSIjREIyMTJGIiBkPSJNLTEwOC44NDEsNDU5LjMwMWMwLjk1OSwwLjQ0OSwxLjc4NywxLjA1NywyLjQ4OCwxLjc3M2w0LjYwNC0xLjY3Nw0KCQkJCQljLTEuMjc2LTEuNzktMy4wMTItMy4yODYtNS4xNDEtNC4yNzdjLTYuNTgzLTMuMDcxLTE0LjQzNC0wLjIxMy0xNy41MDUsNi4zNjljLTAuOTkyLDIuMTI5LTEuMzYyLDQuMzkyLTEuMTg4LDYuNTgyDQoJCQkJCWw0LjYwNi0xLjY3NWMwLjA3NS0wLjk5OCwwLjMxOC0xLjk5OCwwLjc2Ni0yLjk1N0MtMTE4LjIxOCw0NTkuMTY0LTExMy4xMTYsNDU3LjMwOS0xMDguODQxLDQ1OS4zMDEiLz4NCgkJCTwvZz4NCgkJPC9nPg0KCQk8cGF0aCBmaWxsPSIjRUEyMjI3IiBkPSJNLTEyMy4wMTUsNDY5LjQ1MmwtNC4zNzYsMS41OTRjMC40MDEsMS41OTQsMS4xMDEsMy4xMSwyLjA1Nyw0LjQ1OGw0LjU5Ni0xLjY3DQoJCQlDLTEyMS45MTksNDcyLjYyMS0xMjIuNzAyLDQ3MS4wOS0xMjMuMDE1LDQ2OS40NTIiLz4NCgkJPHBhdGggZmlsbD0iI0RCMjEyRiIgZD0iTS0xMDMuOTMsNDY3LjcxNWMtMC4wNzMsMC45OTktMC4zMjUsMS45OTgtMC43NzQsMi45NTdjLTEuOTk0LDQuMjc3LTcuMDk0LDYuMTM0LTExLjM3MSw0LjE0DQoJCQljLTAuOTU4LTAuNDQ5LTEuNzk1LTEuMDUzLTIuNDkyLTEuNzdsLTQuNTk0LDEuNjczYzEuMjcxLDEuNzg5LDMuMDA3LDMuMjg1LDUuMTM3LDQuMjc5YzYuNTgyLDMuMDY5LDE0LjQzNCwwLjIxMSwxNy41MDItNi4zNzINCgkJCWMwLjk5NC0yLjEyOSwxLjM2Mi00LjM5MSwxLjE4NS02LjU3OEwtMTAzLjkzLDQ2Ny43MTV6Ii8+DQoJCTxwYXRoIGZpbGw9IiNFQTIyMjciIGQ9Ik0tMTAyLjc5OCw0NjIuMDk0bC00LjM3NCwxLjU5MmMwLjgxMSwxLjQ1NywxLjE5NSwzLjEzNCwxLjA3MSw0LjgxOWw0LjU5NC0xLjY3Mg0KCQkJQy0xMDEuNjM5LDQ2NS4xODUtMTAyLjA3OCw0NjMuNTc1LTEwMi43OTgsNDYyLjA5NCIvPg0KCQk8cGF0aCBmaWxsPSIjMjMxRjIwIiBkPSJNLTcyLjI3MSw0NjcuMDMxYzAtMS4zMzEtMC4xOC0yLjUxMi0wLjU0LTMuNTQzYy0wLjM0NC0xLjA0OS0wLjgzNy0xLjkzMS0xLjQ3OC0yLjY1MQ0KCQkJYy0wLjYyNC0wLjczNC0xLjM4NC0xLjI5LTIuMjc1LTEuNjY2Yy0wLjg3Ni0wLjM5Mi0xLjg0NS0wLjU4Ni0yLjkwOS0wLjU4NmMtMS4wNzksMC0yLjA2MywwLjE5NS0yLjk1NSwwLjU4Ng0KCQkJYy0wLjg5MiwwLjM5LTEuNjU5LDAuOTU1LTIuMjk5LDEuNjg5Yy0wLjY0MiwwLjcxOC0xLjE0MiwxLjYwMi0xLjUwMiwyLjY1MWMtMC4zNDUsMS4wNDctMC41MTYsMi4yMzYtMC41MTYsMy41NjUNCgkJCWMwLDEuMzMsMC4xNzEsMi41MiwwLjUxNiwzLjU2NmMwLjM2LDEuMDMxLDAuODUzLDEuOTE1LDEuNDc5LDIuNjUxYzAuNjQsMC43MTgsMS4zOTksMS4yNzMsMi4yNzUsMS42NjUNCgkJCWMwLjg5MiwwLjM3NiwxLjg3NSwwLjU2MywyLjk1NiwwLjU2M2MxLjA2MiwwLDIuMDM5LTAuMTk1LDIuOTMxLTAuNTg2YzAuODkyLTAuMzkxLDEuNjU5LTAuOTQ3LDIuMy0xLjY2NQ0KCQkJYzAuNjQyLTAuNzM2LDEuMTM0LTEuNjI2LDEuNDc4LTIuNjc1Qy03Mi40NTEsNDY5LjU0OC03Mi4yNzEsNDY4LjM1OS03Mi4yNzEsNDY3LjAzMUwtNzIuMjcxLDQ2Ny4wMzF6IE0tNzUuNjQ5LDQ2Ny4wNzYNCgkJCWMwLDEuNjc1LTAuMzUzLDIuOTU2LTEuMDU1LDMuODQ4Yy0wLjY4OSwwLjg5Mi0xLjYxMiwxLjMzNy0yLjc3LDEuMzM3Yy0xLjE1OCwwLTIuMDk1LTAuNDUzLTIuODE1LTEuMzYNCgkJCWMtMC43MTgtMC45MDctMS4wNzgtMi4xOTctMS4wNzgtMy44N2MwLTEuNjc1LDAuMzQ1LTIuOTU3LDEuMDMxLTMuODQ4YzAuNzA0LTAuODkyLDEuNjM2LTEuMzM2LDIuNzkzLTEuMzM2DQoJCQlzMi4wOTQsMC40NTMsMi44MTQsMS4zNkMtNzYuMDA5LDQ2NC4xMTQtNzUuNjQ5LDQ2NS40MDMtNzUuNjQ5LDQ2Ny4wNzZMLTc1LjY0OSw0NjcuMDc2eiIvPg0KCQk8cGF0aCBmaWxsPSIjMjMxRjIwIiBkPSJNLTU1LjA3NSw0NjQuMDUxYzAtMC44NzYtMC4xNDktMS42MzQtMC40NDYtMi4yNzVjLTAuMjk4LTAuNjU4LTAuNzAzLTEuMjA1LTEuMjE5LTEuNjQ0DQoJCQljLTAuNTE4LTAuNDM3LTEuMTItMC43NTgtMS44MDctMC45NmMtMC42ODktMC4yMTgtMS40MTUtMC4zMjktMi4xODMtMC4zMjloLTcuMTc5djE2LjQyMmgzLjI4NXYtNS44MThoMy42MTENCgkJCWMwLjg0NSwwLDEuNjI4LTAuMSwyLjM0Ny0wLjMwNWMwLjczNi0wLjIwMywxLjM2OC0wLjUyMywxLjkwMS0wLjk2YzAuNTMxLTAuNDM5LDAuOTQ0LTAuOTk0LDEuMjQyLTEuNjY3DQoJCQlDLTU1LjIyNCw0NjUuODI2LTU1LjA3NSw0NjUuMDA1LTU1LjA3NSw0NjQuMDUxTC01NS4wNzUsNDY0LjA1MXogTS01OC40NTQsNDY0LjEyMWMwLDEuNDI0LTAuNzgyLDIuMTM0LTIuMzQ1LDIuMTM0aC0zLjgyNA0KCQkJdi00LjIyMmgzLjc3N2MwLjczMywwLDEuMzEyLDAuMTcxLDEuNzM1LDAuNTE2Qy01OC42NzIsNDYyLjg3Ny01OC40NTQsNDYzLjQwMS01OC40NTQsNDY0LjEyMUwtNTguNDU0LDQ2NC4xMjF6Ii8+DQoJCTxwb2x5Z29uIGZpbGw9IiMyMzFGMjAiIHBvaW50cz0iLTM5LjE0Nyw0NzUuMjY0IC0zOS4xNDcsNDcyLjA1IC00Ny42MTUsNDcyLjA1IC00Ny42MTUsNDY4LjA4NiAtNDIuOSw0NjguMDg2IC00Mi45LDQ2NC44OTYgDQoJCQktNDcuNjE1LDQ2NC44OTYgLTQ3LjYxNSw0NjIuMDU3IC0zOS40OTcsNDYyLjA1NyAtMzkuNDk3LDQ1OC44NDIgLTUwLjksNDU4Ljg0MiAtNTAuOSw0NzUuMjY0IAkJIi8+DQoJCTxwYXRoIGZpbGw9IiMyMzFGMjAiIGQ9Ik0tMjEuMjkyLDQ3NS4yNjR2LTE2LjQyMmgtMy4yMzh2Ny44MTJjMC4wMTYsMC4zNDQsMC4wMjMsMC42OTUsMC4wMjMsMS4wNTV2MC45ODYNCgkJCWMwLjAxNiwwLjI5NywwLjAyMywwLjUyNCwwLjAyMywwLjY3OWMtMC4xMDktMC4yMTgtMC4yODEtMC41LTAuNTE3LTAuODQ1Yy0wLjIxOS0wLjM1OC0wLjQzLTAuNjk1LTAuNjMzLTEuMDA4bC01LjgxOC04LjY4DQoJCQloLTMuMTQ0djE2LjQyMmgzLjIzNnYtNy4yMjZjMC0wLjIzNC0wLjAwOC0wLjUyMy0wLjAyMS0wLjg2OHYtMS4wMzJjMC0wLjM2LTAuMDA4LTAuNjg4LTAuMDIzLTAuOTg2di0wLjcwMw0KCQkJYzAuMTA3LDAuMjE4LDAuMjczLDAuNTA4LDAuNDkyLDAuODY2YzAuMjMzLDAuMzQ1LDAuNDUyLDAuNjczLDAuNjU3LDAuOTg2bDYuMDI4LDguOTYySC0yMS4yOTJ6Ii8+DQoJCTxwYXRoIGZpbGw9IiMyMzFGMjAiIGQ9Ik0tNS44NzksNDcwLjk0N2MwLTAuNjEtMC4wNzktMS4xNDktMC4yMzQtMS42MThjLTAuMTU3LTAuNDctMC40MjQtMC44OTktMC43OTgtMS4yOTENCgkJCWMtMC4zNTktMC4zOTItMC44NDQtMC43NS0xLjQ1NC0xLjA3OWMtMC42MS0wLjMyOC0xLjM3LTAuNjU3LTIuMjc1LTAuOTg2Yy0wLjgzMS0wLjI5Ny0xLjUwMi0wLjU3MS0yLjAxOC0wLjgyMQ0KCQkJYy0wLjUwMi0wLjI1LTAuODkyLTAuNS0xLjE3My0wLjc1Yy0wLjI4Mi0wLjI2Ni0wLjQ3MS0wLjUzMi0wLjU2My0wLjc5OWMtMC4wOTUtMC4yODItMC4xNDItMC41OTMtMC4xNDItMC45MzcNCgkJCWMwLTAuMzI5LDAuMDU2LTAuNjM0LDAuMTYzLTAuOTE2YzAuMTI2LTAuMjk3LDAuMzEzLTAuNTU1LDAuNTY1LTAuNzczYzAuMjY2LTAuMjIsMC42MDEtMC4zOTIsMS4wMDgtMC41MTgNCgkJCWMwLjQwNy0wLjE0LDAuODkyLTAuMjEsMS40NTQtMC4yMWMwLjgyOSwwLDEuNTQxLDAuMTMzLDIuMTM2LDAuMzk5YzAuNjA4LDAuMjUsMS4yMTEsMC42MjYsMS44MDUsMS4xMjZsMS4xNzQtMS40MzENCgkJCWMtMC42ODgtMC41NDctMS40MjMtMC45NzgtMi4yMDUtMS4yOTFjLTAuNzY2LTAuMzEzLTEuNjk2LTAuNDY5LTIuNzkxLTAuNDY5Yy0wLjc2OCwwLTEuNDcsMC4wOTUtMi4xMTEsMC4yODINCgkJCWMtMC42MjYsMC4xODctMS4xNjYsMC40NjgtMS42MTgsMC44NDRjLTAuNDM5LDAuMzYtMC43ODMsMC43OTctMS4wMzMsMS4zMTNjLTAuMjUsMC41MTgtMC4zNzYsMS4xMDQtMC4zNzYsMS43Ng0KCQkJYzAsMC41OTQsMC4wNzgsMS4xMTgsMC4yMzUsMS41NzJjMC4xNzIsMC40NTMsMC40MzgsMC44NjgsMC43OTgsMS4yNDRjMC4zNzYsMC4zNTgsMC44NiwwLjcwMywxLjQ1NCwxLjAzMg0KCQkJYzAuNjEsMC4zMTMsMS4zNiwwLjYyNiwyLjI1MiwwLjkzOGMwLjc1LDAuMjY2LDEuMzc2LDAuNTMyLDEuODc3LDAuNzk3YzAuNTAyLDAuMjUsMC44OTksMC41MDgsMS4xOTYsMC43NzMNCgkJCWMwLjMxMywwLjI2NiwwLjUzMiwwLjU1NSwwLjY1OCwwLjg2OHMwLjE4NywwLjY1NywwLjE4NywxLjAzM2MwLDAuODc2LTAuMzIsMS41NjMtMC45NjEsMi4wNjMNCgkJCWMtMC42MjUsMC41MDItMS40ODUsMC43NTItMi41OCwwLjc1MmMtMC44NDUsMC0xLjYyOC0wLjE4MS0yLjM0Ni0wLjU0Yy0wLjcyMS0wLjM2LTEuMzkzLTAuODM2LTIuMDE4LTEuNDNsLTEuMjIxLDEuMzYNCgkJCWMwLjY1NywwLjY1NywxLjQ1NCwxLjIwNSwyLjM5NCwxLjY0MmMwLjk1MiwwLjQyMiwxLjk5NCwwLjYzNCwzLjEyLDAuNjM0YzAuODU5LDAsMS42MjUtMC4xMTgsMi4yOTktMC4zNTINCgkJCWMwLjY3Mi0wLjIzNCwxLjI0NC0wLjU1NSwxLjcxMS0wLjk2YzAuNDY5LTAuNDA4LDAuODIxLTAuODkyLDEuMDU2LTEuNDU1Qy02LjAwNSw0NzIuMTkyLTUuODc5LDQ3MS41ODktNS44NzksNDcwLjk0Nw0KCQkJTC01Ljg3OSw0NzAuOTQ3eiIvPg0KCQk8cG9seWdvbiBmaWxsPSIjMjMxRjIwIiBwb2ludHM9IjEwLjgwMSw0NzUuMjY0IDEwLjgwMSw0NTguODQyIDguOTcxLDQ1OC44NDIgOC45NzEsNDY1Ljg1NyAwLjgwNiw0NjUuODU3IDAuODA2LDQ1OC44NDIgDQoJCQktMS4wMjQsNDU4Ljg0MiAtMS4wMjQsNDc1LjI2NCAwLjgwNiw0NzUuMjY0IDAuODA2LDQ2Ny41MjIgOC45NzEsNDY3LjUyMiA4Ljk3MSw0NzUuMjY0IAkJIi8+DQoJCTxyZWN0IHg9IjE2LjI4OSIgeT0iNDU4Ljg0MiIgZmlsbD0iIzIzMUYyMCIgd2lkdGg9IjEuODMyIiBoZWlnaHQ9IjE2LjQyMiIvPg0KCQk8cG9seWdvbiBmaWxsPSIjMjMxRjIwIiBwb2ludHM9IjMzLjI1LDQ2MC41MDcgMzMuMjUsNDU4Ljg0MiAyMy42MDksNDU4Ljg0MiAyMy42MDksNDc1LjI2NCAyNS40MzgsNDc1LjI2NCAyNS40MzgsNDY3LjYxNyANCgkJCTI5Ljk0Myw0NjcuNjE3IDI5Ljk0Myw0NjUuOTUgMjUuNDM4LDQ2NS45NSAyNS40MzgsNDYwLjUwNyAJCSIvPg0KCQk8cG9seWdvbiBmaWxsPSIjMjMxRjIwIiBwb2ludHM9IjQ4LjAwOCw0NjAuNTA3IDQ4LjAwOCw0NTguODQyIDM2LjUxMiw0NTguODQyIDM2LjUxMiw0NjAuNTA3IDQxLjM0NCw0NjAuNTA3IDQxLjM0NCw0NzUuMjY0IA0KCQkJNDMuMTc2LDQ3NS4yNjQgNDMuMTc2LDQ2MC41MDcgCQkiLz4NCgkJPHBhdGggZmlsbD0iIzIzMUYyMCIgZD0iTS00MS41MjYsNDg4LjI2MWMtMC4yMjMsMC4xMjQtMC41MzQsMC4yMTItMC44OTYsMC4yMTJjLTAuNjQ5LDAtMS4wNDktMC4zOTktMS4wNDktMS4yMzR2LTIuNjkxaC0wLjY2NQ0KCQkJdi0wLjgzNmgwLjY2NXYtMS4zMzFsMC44OTYtMC40Nzl2MS44MDloMS4xNTV2MC44MzZoLTEuMTU1djIuNTMxYzAsMC40MzUsMC4xNDQsMC41NTksMC40OCwwLjU1OQ0KCQkJYzAuMjM4LDAsMC41MDYtMC4wODksMC42NzUtMC4xODdMLTQxLjUyNiw0ODguMjYxeiBNLTQ1Ljg0Myw0ODYuMzg3Yy0wLjI0OC0wLjEyNC0wLjU2Ni0wLjIwNS0xLjA2NC0wLjIwNQ0KCQkJYy0wLjU4NywwLTAuOTU5LDAuMjY4LTAuOTU5LDAuNjkzYzAsMC40NjIsMC4yOTQsMC43NzMsMC44OTYsMC43NzNjMC40OSwwLDAuOTE2LTAuMzAzLDEuMTI4LTAuNTk2VjQ4Ni4zODd6IE0tNDUuODQzLDQ4OC4zNzUNCgkJCXYtMC40NjFjLTAuMzE4LDAuMzE5LTAuNzczLDAuNTU4LTEuMjc5LDAuNTU4Yy0wLjc1NCwwLTEuNjE0LTAuNDI3LTEuNjE0LTEuNTczYzAtMS4wMzcsMC44LTEuNTA3LDEuODU2LTEuNTA3DQoJCQljMC40MzYsMCwwLjc3OSwwLjA2MSwxLjAzNywwLjE3N3YtMC4zNDZjMC0wLjUwNi0wLjMxMS0wLjc5Mi0wLjg3OC0wLjc5MmMtMC40NzksMC0wLjg1MiwwLjA5MS0xLjIxNiwwLjI5NWwtMC4zNTQtMC42OTMNCgkJCWMwLjQ0My0wLjI3NSwwLjk0LTAuNDE5LDEuNTk3LTAuNDE5YzEuMDM5LDAsMS43NDksMC41MDgsMS43NDksMS41NjV2My4xOTVILTQ1Ljg0M3ogTS01MC44MDcsNDg4LjM3NXYtMi43ODdoLTIuODU3djIuNzg3DQoJCQloLTAuOTMydi02LjIxNmgwLjkzMnYyLjUxNWgyLjg1N3YtMi41MTVoMC45MzR2Ni4yMTZILTUwLjgwN3ogTS01OS4xMjcsNDg1LjA3MmMtMC4yMDQtMC4yNzUtMC42My0wLjYxLTEuMDkyLTAuNjENCgkJCWMtMC42NTgsMC0xLjAxMiwwLjQ5Ni0xLjAxMiwxLjQ4YzAsMS4xNzMsMC4zNzIsMS42ODcsMS4wNDcsMS42ODdjMC40MzUsMCwwLjgxOC0wLjI5MSwxLjA1Ny0wLjU5NVY0ODUuMDcyTC01OS4xMjcsNDg1LjA3MnoNCgkJCSBNLTU5LjEzNyw0ODguMzc1di0wLjQ0M2MtMC4zMzYsMC4zMDktMC43MjcsMC41NC0xLjIxNCwwLjU0Yy0xLjAwNiwwLTEuNzk2LTAuNzI3LTEuNzk2LTIuNTAzYzAtMS41OTksMC44NzItMi4zNTQsMS44NDEtMi4zNTQNCgkJCWMwLjQ3MSwwLDAuOTEzLDAuMjUsMS4xNjksMC41MzN2LTEuNzc0bDAuOTA3LTAuNDcydjYuNDczSC01OS4xMzd6IE0tNjQuOTc5LDQ4NC40NDJjLTAuNjExLDAtMC45ODQsMC40MjgtMS4wNjQsMS4xNzFoMi4xNjUNCgkJCUMtNjMuOTIxLDQ4NC45NzYtNjQuMjIzLDQ4NC40NDItNjQuOTc5LDQ4NC40NDIgTS02Mi45ODEsNDg2LjM3aC0zLjA4YzAuMDk4LDAuODk2LDAuNjAyLDEuMjc5LDEuMTcxLDEuMjc5DQoJCQljMC4zOTIsMCwwLjcwMy0wLjE0MiwxLjAxMi0wLjM3NGwwLjU0MywwLjU4N2MtMC40MDksMC4zOS0wLjg5NywwLjYxMi0xLjYwNywwLjYxMmMtMS4wOTMsMC0yLjAxNi0wLjg4LTIuMDE2LTIuNDI1DQoJCQljMC0xLjU4MSwwLjgzNi0yLjQzMywyLjA0Mi0yLjQzM2MxLjMyMywwLDEuOTYxLDEuMDc1LDEuOTYxLDIuMzM2Qy02Mi45NTYsNDg2LjEyMi02Mi45NzEsNDg2LjI3MS02Mi45ODEsNDg2LjM3DQoJCQkgTS02OS42OTUsNDgzLjAzOWgtMS44MTJ2MS45OThoMS44MTJjMC42MjIsMCwxLjA1OC0wLjMxOSwxLjA1OC0wLjk5NEMtNjguNjM3LDQ4My4zOTYtNjkuMDYzLDQ4My4wMzktNjkuNjk1LDQ4My4wMzkNCgkJCSBNLTY5LjA2Myw0ODUuODM2bDEuMjcsMi41NDFoLTEuMDcybC0xLjIzNy0yLjQ2aC0xLjQwM3YyLjQ2aC0wLjkxM3YtNi4yMThoMi43MjVjMS4wODQsMCwxLjk5OCwwLjU3OCwxLjk5OCwxLjg1OA0KCQkJQy02Ny42OTcsNDg1LjAxMS02OC4yMiw0ODUuNjI0LTY5LjA2Myw0ODUuODM2IE0tNzguMDEzLDQ5MC4wMTloLTAuOTY5bDAuNjc2LTEuNzMybC0xLjcxNS00LjU3MmgxLjAwNGwwLjc2MiwyLjI4MQ0KCQkJYzAuMTQ2LDAuNDA5LDAuMzU2LDEuMTAyLDAuNDExLDEuMzZjMC4wNzktMC4yNzgsMC4yNzQtMC45NCwwLjQxOC0xLjM0M2wwLjc4OS0yLjI5OGgwLjk2OUwtNzguMDEzLDQ5MC4wMTl6IE0tODIuNDQ2LDQ4NC40Ng0KCQkJYy0wLjQzNSwwLTAuODE0LDAuMjkzLTEuMDU3LDAuNTk0djEuOTYzYzAuMjA0LDAuMjc2LDAuNjMyLDAuNjE0LDEuMDk1LDAuNjE0YzAuNjU0LDAsMS4wMTEtMC40OTgsMS4wMTEtMS40ODINCgkJCUMtODEuMzk3LDQ4NC45NzQtODEuNzcxLDQ4NC40Ni04Mi40NDYsNDg0LjQ2IE0tODIuMzIsNDg4LjQ3NGMtMC40NzMsMC0wLjkxNS0wLjI0OC0xLjE3My0wLjUzM3YwLjQzNWgtMC45MDZ2LTYuMDAxbDAuOTA2LTAuNDcyDQoJCQl2Mi4yNTVjMC4zMzgtMC4zMDksMC43MjgtMC41NCwxLjIxNi0wLjU0YzEuMDA0LDAsMS43OTYsMC43MjksMS43OTYsMi41MDRDLTgwLjQ4MSw0ODcuNzItODEuMzUxLDQ4OC40NzQtODIuMzIsNDg4LjQ3NCIvPg0KCQk8cGF0aCBmaWxsPSIjMjMxRjIwIiBkPSJNLTM5LjM0Nyw0ODIuNzM2Yy0wLjAyOS0wLjAyMy0wLjA2OS0wLjAzNS0wLjEyNC0wLjAzNWgtMC4yMjd2MC4yODdoMC4yMTMNCgkJCWMwLjEyLDAsMC4xNzktMC4wNDcsMC4xNzktMC4xNDRDLTM5LjMwNiw0ODIuNzk3LTM5LjMyLDQ4Mi43NjItMzkuMzQ3LDQ4Mi43MzYgTS0zOS4yNDcsNDgzLjAwNA0KCQkJYy0wLjAzNCwwLjA0MS0wLjA4MywwLjA2OS0wLjE0MywwLjA4M2wwLjE5MSwwLjM2NGgtMC4xMzRsLTAuMTg0LTAuMzU0aC0wLjE4M3YwLjM1NGgtMC4xMTJWNDgyLjZoMC4zNDUNCgkJCWMwLjA3NiwwLDAuMTQyLDAuMDIsMC4xOTQsMC4wNjFjMC4wNTQsMC4wMzgsMC4wNzksMC4xMDEsMC4wNzksMC4xODNDLTM5LjE5Miw0ODIuOTA5LTM5LjIwOSw0ODIuOTYyLTM5LjI0Nyw0ODMuMDA0DQoJCQkgTS0zOC45Miw0ODIuNzY4Yy0wLjAzMy0wLjA4My0wLjA4LTAuMTU0LTAuMTQtMC4yMTNjLTAuMDU5LTAuMDU4LTAuMTMtMC4xMDQtMC4yMTEtMC4xMzZjLTAuMDgtMC4wMzUtMC4xNjktMC4wNTEtMC4yNjQtMC4wNTENCgkJCWMtMC4wOTIsMC0wLjE3OSwwLjAxNi0wLjI2MiwwLjA1MWMtMC4wOCwwLjAzMS0wLjE0OSwwLjA3Ny0wLjIxLDAuMTM2Yy0wLjA2LDAuMDYtMC4xMDYsMC4xMzEtMC4xNDMsMC4yMTMNCgkJCWMtMC4wMzMsMC4wOC0wLjA0OSwwLjE3My0wLjA0OSwwLjI3M2MwLDAuMDk5LDAuMDE2LDAuMTg5LDAuMDQ5LDAuMjcyYzAuMDM2LDAuMDgzLDAuMDgzLDAuMTUzLDAuMTQzLDAuMjENCgkJCWMwLjA2MSwwLjA1OCwwLjEzLDAuMTA2LDAuMjEsMC4xMzljMC4wODMsMC4wMzIsMC4xNywwLjA0OCwwLjI2MiwwLjA0OGMwLjA5NSwwLDAuMTg0LTAuMDE2LDAuMjY0LTAuMDQ4DQoJCQljMC4wODEtMC4wMzMsMC4xNTItMC4wODEsMC4yMTEtMC4xMzljMC4wNi0wLjA1NywwLjEwNi0wLjEyOCwwLjE0LTAuMjFjMC4wMzUtMC4wODMsMC4wNTItMC4xNzMsMC4wNTItMC4yNzINCgkJCUMtMzguODY5LDQ4Mi45NDEtMzguODg1LDQ4Mi44NDgtMzguOTIsNDgyLjc2OCBNLTM4LjgyMiw0ODMuMzU0Yy0wLjA0MSwwLjA5My0wLjA5NSwwLjE3NS0wLjE2MywwLjI0NA0KCQkJYy0wLjA2OSwwLjA2NS0wLjE1LDAuMTE4LTAuMjQ0LDAuMTU2Yy0wLjA5NSwwLjAzNS0wLjE5NSwwLjA1NC0wLjMwNiwwLjA1NGMtMC4xMDgsMC0wLjIwOC0wLjAyLTAuMzAzLTAuMDU0DQoJCQljLTAuMDk1LTAuMDM4LTAuMTc3LTAuMDkxLTAuMjQ0LTAuMTU2Yy0wLjA2OS0wLjA2OS0wLjEyNC0wLjE1MS0wLjE2My0wLjI0NGMtMC4wMzgtMC4wOTUtMC4wNTgtMC4yMDEtMC4wNTgtMC4zMTMNCgkJCWMwLTAuMTE4LDAuMDItMC4yMjEsMC4wNTgtMC4zMTVjMC4wMzktMC4wOTYsMC4wOTQtMC4xNzgsMC4xNjMtMC4yNDRjMC4wNjctMC4wNjksMC4xNDktMC4xMiwwLjI0NC0wLjE1Nw0KCQkJYzAuMDk1LTAuMDM3LDAuMTk0LTAuMDU1LDAuMzAzLTAuMDU1YzAuMTEsMCwwLjIxMSwwLjAxOCwwLjMwNiwwLjA1NWMwLjA5NCwwLjAzOCwwLjE3NSwwLjA4OSwwLjI0NCwwLjE1Nw0KCQkJYzAuMDY4LDAuMDY3LDAuMTIyLDAuMTQ4LDAuMTYzLDAuMjQ0YzAuMDM3LDAuMDk1LDAuMDU3LDAuMTk3LDAuMDU3LDAuMzE1Qy0zOC43NjUsNDgzLjE1My0zOC43ODUsNDgzLjI2LTM4LjgyMiw0ODMuMzU0Ii8+DQoJCTxwYXRoIGZpbGw9IiMyMjFEMUQiIGQ9Ik01MS43MTcsNDU5LjI2MmMtMC4wNDMtMC4wMzgtMC4xMDQtMC4wNTctMC4xODYtMC4wNTdoLTAuMzQ2djAuNDQxaDAuMzI2DQoJCQljMC4xODIsMCwwLjI3MS0wLjA3NSwwLjI3MS0wLjIyMUM1MS43ODMsNDU5LjM1Myw1MS43NjQsNDU5LjI5Nyw1MS43MTcsNDU5LjI2MiBNNTEuODc1LDQ1OS42NjcNCgkJCWMtMC4wNTUsMC4wNjEtMC4xMjksMC4xMDQtMC4yMTksMC4xMjdsMC4yODksMC41NTNoLTAuMjAxbC0wLjI3OS0wLjU0MWgtMC4yNzl2MC41NDFoLTAuMTd2LTEuMjk1aDAuNTIzDQoJCQljMC4xMTcsMCwwLjIxNywwLjAyOSwwLjI5NSwwLjA5YzAuMDgyLDAuMDYyLDAuMTIxLDAuMTU2LDAuMTIxLDAuMjgyQzUxLjk1NSw0NTkuNTIzLDUxLjkyNiw0NTkuNjA0LDUxLjg3NSw0NTkuNjY3DQoJCQkgTTUyLjM3MSw0NTkuMzA3Yy0wLjA1MS0wLjEyNi0wLjEyMy0wLjIzNC0wLjIxNS0wLjMyM2MtMC4wODgtMC4wOTEtMC4xOTctMC4xNjItMC4zMjItMC4yMTFjLTAuMTIzLTAuMDUxLTAuMjU2LTAuMDc1LTAuNC0wLjA3NQ0KCQkJYy0wLjE0MSwwLTAuMjczLDAuMDI0LTAuMzk2LDAuMDc1Yy0wLjEyNSwwLjA0OS0wLjIzLDAuMTItMC4zMjIsMC4yMTFjLTAuMDkyLDAuMDg4LTAuMTYyLDAuMTk3LTAuMjEzLDAuMzIzDQoJCQljLTAuMDU1LDAuMTI0LTAuMDgsMC4yNjQtMC4wOCwwLjQxNWMwLDAuMTUyLDAuMDI1LDAuMjksMC4wOCwwLjQxNmMwLjA1MSwwLjEyNiwwLjEyMSwwLjIzNCwwLjIxMywwLjMyMw0KCQkJYzAuMDkyLDAuMDksMC4xOTcsMC4xNTksMC4zMjIsMC4yMDhjMC4xMjMsMC4wNTEsMC4yNTYsMC4wNzUsMC4zOTYsMC4wNzVjMC4xNDUsMCwwLjI3Ny0wLjAyMywwLjQtMC4wNzUNCgkJCWMwLjEyNS0wLjA0OSwwLjIzNC0wLjExOCwwLjMyMi0wLjIwOGMwLjA5Mi0wLjA4OCwwLjE2NC0wLjE5NywwLjIxNS0wLjMyM3MwLjA3OC0wLjI2NCwwLjA3OC0wLjQxNg0KCQkJQzUyLjQ0OSw0NTkuNTcxLDUyLjQyMiw0NTkuNDMxLDUyLjM3MSw0NTkuMzA3IE01Mi41Miw0NjAuMjAzYy0wLjA2MSwwLjE0Mi0wLjE0MywwLjI2Ni0wLjI0NiwwLjM2OA0KCQkJYy0wLjEwNywwLjEwNS0wLjIyOSwwLjE4NC0wLjM3MywwLjIzOGMtMC4xNDEsMC4wNTctMC4yOTcsMC4wODUtMC40NjcsMC4wODVjLTAuMTY2LDAtMC4zMi0wLjAyOC0wLjQ2NS0wLjA4NQ0KCQkJYy0wLjE0MS0wLjA1NS0wLjI2Mi0wLjEzMy0wLjM3MS0wLjIzOGMtMC4xMDItMC4xMDItMC4xODYtMC4yMjYtMC4yNDQtMC4zNjhjLTAuMDYxLTAuMTQ2LTAuMDkyLTAuMzA1LTAuMDkyLTAuNDgNCgkJCWMwLTAuMTc1LDAuMDMxLTAuMzM0LDAuMDkyLTAuNDhjMC4wNTktMC4xNDQsMC4xNDMtMC4yNjYsMC4yNDQtMC4zNjljMC4xMDktMC4xMDQsMC4yMy0wLjE4MywwLjM3MS0wLjI0DQoJCQljMC4xNDUtMC4wNTUsMC4yOTktMC4wODQsMC40NjUtMC4wODRjMC4xNywwLDAuMzI2LDAuMDI5LDAuNDY3LDAuMDg0YzAuMTQ1LDAuMDU3LDAuMjY2LDAuMTM2LDAuMzczLDAuMjQNCgkJCWMwLjEwNCwwLjEwMywwLjE4NiwwLjIyNSwwLjI0NiwwLjM2OWMwLjA1OSwwLjE0NiwwLjA5LDAuMzA1LDAuMDksMC40OEM1Mi42MDksNDU5Ljg5OCw1Mi41NzgsNDYwLjA1Nyw1Mi41Miw0NjAuMjAzIi8+DQoJPC9nPg0KPC9nPg0KPGcgaWQ9IkxheWVyXzIiPg0KPC9nPg0KPGcgaWQ9IkxheWVyXzQiIGRpc3BsYXk9Im5vbmUiPg0KCTxnIGRpc3BsYXk9ImlubGluZSI+DQoJCTxwYXRoIGQ9Ik0tODUuMTkzLDUxMy4zNTNjLTMuMjk1LDAtNS40ODMsMi42NTUtNS40ODMsNy40MjVjMCw0Ljc3MSwyLjI4OCw3LjQ5Miw1LjU4OCw3LjQ5MmMzLjI5NSwwLDUuNDc4LTIuNjU0LDUuNDc4LTcuNDI2DQoJCQlDLTc5LjYxLDUxNi4wNzUtODEuODk5LDUxMy4zNTMtODUuMTkzLDUxMy4zNTMgTS04NS4xNiw1MzIuOTM4Yy02LjE1NCwwLTEwLjM1OS00LjUtMTAuMzU5LTEyLjA5NA0KCQkJYzAtNy41ODcsNC4yNzItMTIuMTYsMTAuNDMyLTEyLjE2YzYuMTE2LDAsMTAuMzI0LDQuNTAxLDEwLjMyNCwxMi4wOTNTLTc5LjAzOSw1MzIuOTM4LTg1LjE2LDUzMi45MzgiLz4NCgkJPHBhdGggZD0iTS02MC4xNCw1MTMuNjIxaC01LjQxNXY2LjA0OWg1LjQ4NWMyLjE4NCwwLDMuMzYyLTEuMDA5LDMuMzYyLTMuMDYxQy01Ni43MDksNTE0LjU2MS01OC4wNTYsNTEzLjYyMS02MC4xNCw1MTMuNjIxDQoJCQkgTS02MC4zNzQsNTI0LjI0MWgtNS4xODJ2OC4zMjhoLTQuNzA4di0yMy41MTZoMTAuMjkxYzQuNDM5LDAsOC4xMDcsMi40NTQsOC4xMDcsNy40NTkNCgkJCUMtNTEuODY3LDUyMS45NTgtNTUuNDk4LDUyNC4yNDEtNjAuMzc0LDUyNC4yNDEiLz4NCgkJPHBvbHlnb24gcG9pbnRzPSItNDYuOTk0LDUzMi41NjcgLTQ2Ljk5NCw1MDkuMDUzIC0zMC42NSw1MDkuMDUzIC0zMC42NSw1MTMuNjU3IC00Mi4yODksNTEzLjY1NyAtNDIuMjg5LDUxNy43MjEgDQoJCQktMzUuNTI5LDUxNy43MjEgLTM1LjUyOSw1MjIuMjg4IC00Mi4yODksNTIyLjI4OCAtNDIuMjg5LDUyNy45NjMgLTMwLjE0NSw1MjcuOTYzIC0zMC4xNDUsNTMyLjU2NyAJCSIvPg0KCQk8cGF0aCBkPSJNLTkuODcxLDUzMi41NjdsLTguNjQ3LTEyLjgzYy0wLjU3My0wLjg3MS0xLjM0My0yLjA0OS0xLjY0Ni0yLjY1M2MwLDAuODczLDAuMDY0LDMuODI5LDAuMDY0LDUuMTQydjEwLjM0MWgtNC42MzcNCgkJCXYtMjMuNTE0aDQuNTAybDguMzQzLDEyLjQzMmMwLjU3MywwLjg3MSwxLjM0NSwyLjA1MSwxLjY0NywyLjY1M2MwLTAuODc5LTAuMDY1LTMuODI5LTAuMDY1LTUuMTR2LTkuOTQ3aDQuNjM4djIzLjUxNGgtNC4xOTkNCgkJCVY1MzIuNTY3eiIvPg0KCQk8cGF0aCBkPSJNOC4wMjEsNTMyLjkzOGMtMy4xOTMsMC02LjA1My0xLjM4MS03LjktMy4yNThsMS43NDYtMS45NDljMS43ODMsMS43MTMsMy44MzYsMi44MjMsNi4yNTgsMi44MjMNCgkJCWMzLjEyOSwwLDUuMDgtMS41NDQsNS4wOC00LjAzMWMwLTIuMTg3LTEuMzEyLTMuNDI2LTUuNjE3LTQuOTcxYy01LjA3Ny0xLjgxNS02Ljc5OC0zLjQ2MS02Ljc5OC02Ljg1NA0KCQkJYzAtMy43NjcsMi45Ni02LjAxNCw3LjM2Ny02LjAxNGMzLjE2NiwwLDUuMTg0LDAuOTM4LDcuMTY4LDIuNTIybC0xLjY4MiwyLjA0OWMtMS43MTUtMS40MTMtMy4yOTktMi4xODctNS42NTQtMi4xODcNCgkJCWMtMy4yMjYsMC00LjU3NCwxLjYxMi00LjU3NCwzLjQ2YzAsMS45NTMsMC44NzgsMy4wNTcsNS41ODUsNC43MzhjNS4yMTUsMS44ODEsNi44MjksMy42MjksNi44MjksNy4xMjENCgkJCUMxNS44MjgsNTMwLjA4NSwxMi45MzQsNTMyLjkzOCw4LjAyMSw1MzIuOTM4Ii8+DQoJCTxwb2x5Z29uIHBvaW50cz0iMzUuOTk5LDUzMi41NjcgMzUuOTk5LDUyMS40ODUgMjQuMjk1LDUyMS40ODUgMjQuMjk1LDUzMi41NjcgMjEuNjcyLDUzMi41NjcgMjEuNjcyLDUwOS4wNTMgMjQuMjk1LDUwOS4wNTMgDQoJCQkyNC4yOTUsNTE5LjA5OCAzNS45OTksNTE5LjA5OCAzNS45OTksNTA5LjA1MyAzOC42MjMsNTA5LjA1MyAzOC42MjMsNTMyLjU2NyAJCSIvPg0KCQk8cmVjdCB4PSI0NS4zNzEiIHk9IjUwOS4wNTUiIHdpZHRoPSIyLjYyMyIgaGVpZ2h0PSIyMy41MTQiLz4NCgkJPHBvbHlnb24gcG9pbnRzPSI1Ny4zNzUsNTExLjQzOCA1Ny4zNzUsNTE5LjIzMyA2My44Myw1MTkuMjMzIDYzLjgzLDUyMS42MiA1Ny4zNzUsNTIxLjYyIDU3LjM3NSw1MzIuNTY3IDU0Ljc1LDUzMi41NjcgDQoJCQk1NC43NSw1MDkuMDUzIDY4LjU3Niw1MDkuMDUzIDY4LjU3Niw1MTEuNDM4IAkJIi8+DQoJCTxwb2x5Z29uIHBvaW50cz0iODIuODM0LDUxMS40MzggODIuODM0LDUzMi41NjcgODAuMjExLDUzMi41NjcgODAuMjExLDUxMS40MzggNzMuMjg1LDUxMS40MzggNzMuMjg1LDUwOS4wNTMgODkuNzY0LDUwOS4wNTMgDQoJCQk4OS43NjQsNTExLjQzOCAJCSIvPg0KCQk8cGF0aCBmaWxsPSIjQkMxQzI5IiBkPSJNLTE0Mi4zNDEsNTE4LjQ5OGwtNy44NzIsMi44NjFjMC4xMDMsMS4yNiwwLjMxOCwyLjUwNCwwLjYyMywzLjcyNWw3LjQ3My0yLjcyMw0KCQkJQy0xNDIuMzU3LDUyMS4xMDMtMTQyLjQ0Miw1MTkuODAzLTE0Mi4zNDEsNTE4LjQ5OCIvPg0KCQk8cGF0aCBmaWxsPSIjQkMxQzI5IiBkPSJNLTEwNy41NzEsNTA5LjgxYy0wLjU0OC0xLjEyOS0xLjE4MS0yLjIyNC0xLjkxOS0zLjI1NmwtNy44NjgsMi44NjFjMC45MTYsMC45MzgsMS42ODUsMS45ODcsMi4zMTIsMy4xMTMNCgkJCUwtMTA3LjU3MSw1MDkuODF6Ii8+DQoJCTxwYXRoIGZpbGw9IiNFMjI0MzQiIGQ9Ik0tMTI0Ljg4Miw1MDcuNTg2YzEuNjM2LDAuNzYzLDMuMDU3LDEuODAxLDQuMjUsMy4wMjNsNy44NjktMi44NjRjLTIuMTgyLTMuMDUyLTUuMTQ4LTUuNjA0LTguNzgyLTcuMjk3DQoJCQljLTExLjI0Ni01LjI0LTI0LjY2Ny0wLjM2NC0yOS45MDUsMTAuODdjLTEuNzAxLDMuNjMxLTIuMzMyLDcuNDk0LTIuMDM4LDExLjIzMWw3Ljg3MS0yLjg2YzAuMTI4LTEuNywwLjU0Ny0zLjQwNywxLjMxMS01LjA0NA0KCQkJQy0xNDAuOTAzLDUwNy4zNS0xMzIuMTg0LDUwNC4xODEtMTI0Ljg4Miw1MDcuNTg2Ii8+DQoJCTxwYXRoIGZpbGw9IiNFMjI0MzQiIGQ9Ik0tMTQ5LjA5OSw1MjQuOTA5bC03LjQ3NSwyLjcxN2MwLjY4OCwyLjcxOSwxLjg4LDUuMzA5LDMuNTE2LDcuNjA3bDcuODUzLTIuODUxDQoJCQlDLTE0Ny4yMjEsNTMwLjMxMS0xNDguNTY0LDUyNy43LTE0OS4wOTksNTI0LjkwOSIvPg0KCQk8cGF0aCBmaWxsPSIjRTIyNDM0IiBkPSJNLTExNi40OTEsNTIxLjk0NGMtMC4xMjYsMS42OTgtMC41NTEsMy40MDgtMS4zMTksNS4wNDVjLTMuNDA2LDcuMjk5LTEyLjEyMywxMC40NjctMTkuNDMxLDcuMDYyDQoJCQljLTEuNjM2LTAuNzY2LTMuMDY3LTEuNzk5LTQuMjU4LTMuMDJsLTcuODQ5LDIuODU0YzIuMTc1LDMuMDUzLDUuMTQxLDUuNjA0LDguNzc2LDcuMzAyYzExLjI0Niw1LjIzNywyNC42NjQsMC4zNiwyOS45MS0xMC44NzMNCgkJCWMxLjY5Ni0zLjYzMiwyLjMyMi03LjQ5MiwyLjAyNC0xMS4yMjhMLTExNi40OTEsNTIxLjk0NHoiLz4NCgkJPHBhdGggZmlsbD0iI0UyMjQzNCIgZD0iTS0xMTQuNTU1LDUxMi4zNDZsLTcuNDc1LDIuNzI0YzEuMzksMi40ODEsMi4wNDMsNS4zNDQsMS44MzMsOC4yMjFsNy44NS0yLjg1NA0KCQkJQy0xMTIuNTc0LDUxNy42MjItMTEzLjMyNSw1MTQuODc2LTExNC41NTUsNTEyLjM0NiIvPg0KCQk8cGF0aCBmaWxsPSIjOTcxMDFCIiBkPSJNLTE0Mi4zNzMsNTIwLjA3OGMtMC4wMTktMC41MjQtMC4wMTItMS4wNTEsMC4wMzItMS41OGwtNy44NzIsMi44NjFjMC4wMzgsMC41MDQsMC4xMDMsMS4wMDIsMC4xNzgsMS41DQoJCQlMLTE0Mi4zNzMsNTIwLjA3OHoiLz4NCgkJPHBhdGggZmlsbD0iIzk3MTAxQiIgZD0iTS0xMDguNzA3LDUwNy43NDFjLTAuMjUtMC40LTAuNTA3LTAuOC0wLjc4MS0xLjE4N2wtNy44NjYsMi44NjFjMC4zNDUsMC4zNTQsMC42NjYsMC43MzIsMC45NjksMS4xMTQNCgkJCUwtMTA4LjcwNyw1MDcuNzQxeiIvPg0KCQk8cGF0aCBmaWxsPSIjQkMxQzI5IiBkPSJNLTE0OS4zNDcsNTMzLjg4NmMwLjYwNCwwLjg0OSwxLjI3NCwxLjY2MywyLDIuNDI2bDguNTQ1LTMuMTEyYy0xLTAuNjI3LTEuOTAyLTEuMzUzLTIuNjk5LTIuMTY2DQoJCQlMLTE0OS4zNDcsNTMzLjg4NnogTS0xMDguNjM3LDUxOS4wODlsLTcuODU0LDIuODU2Yy0wLjA4MywxLjEyOS0wLjMwMywyLjI2LTAuNjY0LDMuMzcxbDguNTQyLTMuMTEzDQoJCQlDLTEwOC41NDcsNTIxLjE1OS0xMDguNTU5LDUyMC4xMTktMTA4LjYzNyw1MTkuMDg5Ii8+DQoJCTxwYXRoIGQ9Ik05Ni4xMjQsNTExLjAxYy0wLjA4MiwwLjE5OC0wLjE5NCwwLjM2OC0wLjMzOSwwLjUxMWMtMC4xNDcsMC4xMzktMC4zMTYsMC4yNS0wLjUxMiwwLjMyOA0KCQkJYy0wLjE5NywwLjA3OC0wLjQxLDAuMTE1LTAuNjQ2LDAuMTE1Yy0wLjIyNywwLTAuNDM5LTAuMDM4LTAuNjM3LTAuMTE1Yy0wLjE5Ni0wLjA3OS0wLjM2Ni0wLjE4OC0wLjUxNi0wLjMyOA0KCQkJYy0wLjE0MS0wLjE0My0wLjI1Ni0wLjMxMy0wLjMzNC0wLjUxMWMtMC4wODctMC4xOTctMC4xMjgtMC40MTctMC4xMjgtMC42NTljMC0wLjI0MSwwLjA0MS0wLjQ2MSwwLjEyOC0wLjY1Nw0KCQkJYzAuMDc4LTAuMiwwLjE5My0wLjM3LDAuMzM0LTAuNTExYzAuMTQ4LTAuMTQ0LDAuMzE4LTAuMjUsMC41MTYtMC4zMjljMC4xOTctMC4wNzcsMC40MTItMC4xMTYsMC42MzctMC4xMTYNCgkJCWMwLjIzNiwwLDAuNDQ5LDAuMDM5LDAuNjQ2LDAuMTE2YzAuMTk0LDAuMDc5LDAuMzYzLDAuMTg2LDAuNTEyLDAuMzI5YzAuMTQ1LDAuMTQxLDAuMjU3LDAuMzExLDAuMzM5LDAuNTExDQoJCQljMC4wODEsMC4xOTYsMC4xMjIsMC40MTcsMC4xMjIsMC42NTdDOTYuMjQ2LDUxMC41OTMsOTYuMjA1LDUxMC44MTMsOTYuMTI0LDUxMS4wMSBNOTUuOTIsNTA5Ljc4DQoJCQljLTAuMDczLTAuMTc1LTAuMTctMC4zMjMtMC4yOTYtMC40NDRjLTAuMTIyLTAuMTI2LTAuMjcxLTAuMjIyLTAuNDQyLTAuMjkyYy0wLjE2OS0wLjA2Ny0wLjM1NC0wLjEwNC0wLjU1NC0wLjEwNA0KCQkJYy0wLjE5MiwwLTAuMzc1LDAuMDM3LTAuNTQ4LDAuMTA0Yy0wLjE2OCwwLjA3LTAuMzE1LDAuMTY2LTAuNDM4LDAuMjkyYy0wLjEyNywwLjEyMS0wLjIyOCwwLjI2OS0wLjI5OCwwLjQ0NA0KCQkJYy0wLjA3MiwwLjE3My0wLjEwOSwwLjM2MS0wLjEwOSwwLjU3MWMwLDAuMjA3LDAuMDM3LDAuNCwwLjEwOSwwLjU3M2MwLjA3LDAuMTczLDAuMTcxLDAuMzIxLDAuMjk4LDAuNDQ1DQoJCQljMC4xMjQsMC4xMjMsMC4yNzIsMC4yMTcsMC40MzgsMC4yODZjMC4xNzQsMC4wNzIsMC4zNTQsMC4xMDQsMC41NDgsMC4xMDRjMC4xOTgsMCwwLjM4NS0wLjAzMywwLjU1NC0wLjEwNA0KCQkJYzAuMTcyLTAuMDY5LDAuMzIxLTAuMTY0LDAuNDQyLTAuMjg2YzAuMTI2LTAuMTI0LDAuMjI0LTAuMjcyLDAuMjk2LTAuNDQ1YzAuMDc0LTAuMTczLDAuMTA3LTAuMzY0LDAuMTA3LTAuNTczDQoJCQlDOTYuMDI5LDUxMC4xNDEsOTUuOTk0LDUwOS45NSw5NS45Miw1MDkuNzggTTk1LjIzNCw1MTAuMjc1Yy0wLjA3MiwwLjA4Ni0wLjE3MiwwLjE0My0wLjI5NywwLjE3NGwwLjM5OSwwLjc2M2gtMC4yNzgNCgkJCWwtMC4zODQtMC43NDZoLTAuMzg2djAuNzQ2aC0wLjIzNXYtMS43ODNoMC43MjRjMC4xNjQsMCwwLjI5NywwLjA0MywwLjQwNiwwLjEyNWMwLjExMiwwLjA4NSwwLjE2OCwwLjIxNCwwLjE2OCwwLjM4OA0KCQkJQzk1LjM0OCw1MTAuMDc2LDk1LjMwOSw1MTAuMTg4LDk1LjIzNCw1MTAuMjc1IE05NS4wMiw1MDkuNzE3Yy0wLjA1OC0wLjA1MS0wLjE0NS0wLjA3Ny0wLjI1OC0wLjA3N2gtMC40Nzd2MC42MDRoMC40NDcNCgkJCWMwLjI1MiwwLDAuMzc3LTAuMTAxLDAuMzc3LTAuMzAxQzk1LjExMSw1MDkuODQyLDk1LjA3OCw1MDkuNzY0LDk1LjAyLDUwOS43MTciLz4NCgk8L2c+DQo8L2c+DQo8ZyBpZD0iTGF5ZXJfMyIgZGlzcGxheT0ibm9uZSI+DQoJDQoJCTxpbWFnZSBkaXNwbGF5PSJpbmxpbmUiIG92ZXJmbG93PSJ2aXNpYmxlIiB3aWR0aD0iMjE3IiBoZWlnaHQ9Ijk2IiB4bGluazpocmVmPSIuLi9EZXNrdG9wL1NjcmVlbiBTaG90IDIwMTMtMTEtMTkgYXQgNC41MS4zNyBQTS5wbmciICB0cmFuc2Zvcm09Im1hdHJpeCgxIDAgMCAxIC0xNDUuMjI3NSA0MDUuMjkpIj4NCgk8L2ltYWdlPg0KPC9nPg0KPC9zdmc+DQo=);
-  }
-.logo a {
-  display: block;
-  width: 100%;
-  height: 100%;
+a.xhfbfile {padding: 0 2px 0 0; line-height: 1em;}
+a.xhfbfile img{border: none; margin: 6px;}
+a.xhfbfile span{display: none;}
+a.xhfbfile:hover span{
+    display: block;
+    position: relative;
+    left: 150px;
+    border: #aaa 1px solid;
+    padding: 2px;
+    background-color: #ddd;
 }
-*, *:before, *:after {
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+a.xhfbfile:hover{
+    background-color: #ccc;
+    opacity: .9;
+    cursor:pointer;
 }
-aside,
-footer,
-header,
-hgroup,
-section{
-  display: block;
-}
-body {
-  color: #404040;
-  font-family: "Helvetica Neue",Helvetica,"Liberation Sans",Arial,sans-serif;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-html {
-  font-family: sans-serif;
-  -ms-text-size-adjust: 100%;
-  -webkit-text-size-adjust: 100%;
-}
-ul {
-    margin-top: 0;
-}
-.container {
-  margin-right: auto;
-  margin-left: auto;
-  padding-left: 15px;
-  padding-right: 15px;
-}
-.container:before,
-.container:after {
-  content: " ";
-  /* 1 */
-
-  display: table;
-  /* 2 */
-
-}
-.container:after {
-  clear: both;
-}
-.row {
-  margin-left: -15px;
-  margin-right: -15px;
-}
-.row:before,
-.row:after {
-  content: " ";
-  /* 1 */
-
-  display: table;
-  /* 2 */
-
-}
-.row:after {
-  clear: both;
-}
-.col-sm-6, .col-md-6, .col-xs-12 {
-  position: relative;
-  min-height: 1px;
-  padding-left: 15px;
-  padding-right: 15px;
-}
-.col-xs-12 {
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .container {
-    width: 750px;
-  }
-  .col-sm-6 {
-    float: left;
-  }
-  .col-sm-6 {
-    width: 50%;
-  }
-}
-
-@media (min-width: 992px) {
-  .container {
-    width: 970px;
-  }
-  .col-md-6 {
-    float: left;
-  }
-  .col-md-6 {
-    width: 50%;
-  }
-}
-@media (min-width: 1200px) {
-  .container {
-    width: 1170px;
-  }
-}
-
-a {
-  color: #069;
-  text-decoration: none;
-}
-a:hover {
-  color: #EA0011;
-  text-decoration: underline;
-}
-hgroup {
-  margin-top: 50px;
-}
-footer {
-    margin: 50px 0 25px;
-}
-h1, h2, h3 {
-  color: #000;
-  line-height: 1.38em;
-  margin: 1.5em 0 .3em;
-}
-h1 {
-  font-size: 25px;
-  font-weight: 300;
-  border-bottom: 1px solid #fff;
-  margin-bottom: .5em;
-}
-h1:after {
-  content: "";
-  display: block;
-  width: 100%;
-  height: 1px;
-  background-color: #ddd;
-}
-h2 {
-  font-size: 19px;
-  font-weight: 400;
-}
-h3 {
-  font-size: 15px;
-  font-weight: 400;
-  margin: 0 0 .3em;
-}
-p {
-  margin: 0 0 2em;
-}
-p + h2 {
-  margin-top: 2em;
-}
-html {
-  background: #f5f5f5;
-  height: 100%;
-}
-code {
-  background-color: white;
-  border: 1px solid #ccc;
-  padding: 1px 5px;
-  color: #888;
-}
-pre {
-  display: block;
-  padding: 13.333px 20px;
-  margin: 0 0 20px;
-  font-size: 13px;
-line-height: 1.4;
-  background-color: #fff;
-  border-left: 2px solid rgba(120,120,120,0.35);
-  white-space: pre;
-  white-space: pre-wrap;
-  word-break: normal;
-  word-wrap: break-word;
-  overflow: auto;
-  font-family: Menlo,Monaco,"Liberation Mono",Consolas,monospace !important;
-}
-
 </style>
-
 </head>
-<body>
-
-<section class='container'>
-          <hgroup>
-            <h1>Welcome to your Python application on OpenShift</h1>
-          </hgroup>
-          This is a sample WSGI application running on Python 3.3.
-
-        <div class="row">
-          <section class='col-xs-12 col-sm-6 col-md-6'>
-            <section>
-              <h2>Deploying code changes</h2>
-                <p>OpenShift uses the <a href="http://git-scm.com/">Git version control system</a> for your source code, and grants you access to it via the Secure Shell (SSH) protocol. In order to upload and download code to your application you need to give us your <a href="https://www.openshift.com/developers/remote-access">public SSH key</a>. You can upload it within the web console or install the <a href="https://www.openshift.com/developers/rhc-client-tools-install">RHC command line tool</a> and run <code>rhc setup</code> to generate and upload your key automatically.</p>
-                
-                <h3>Working in your local Git repository</h3>
-                <p>If you created your application from the command line and uploaded your SSH key, rhc will automatically download a copy of that source code repository (Git calls this 'cloning') to your local system.</p>
-
-                <p>If you created the application from the web console, you'll need to manually clone the repository to your local system. Copy the application's source code Git URL and then run:</p>
-
-<pre>$ git clone &lt;git_url&gt; &lt;directory_to_create&gt;
-
-# Within your project directory
-# Commit your changes and push to OpenShift
-
-$ git commit -a -m 'Some commit message'
-$ git push</pre>
-
-
-                  <ul>
-                    <li><a href="https://www.openshift.com/developers/deploying-and-building-applications">Learn more about deploying and building your application</a></li>
-                    <li>See the README file in your local application Git repository for more information on the options for deploying applications.</li>
-                  </ul>
-            </section>
-            
-            
-          </section>
-          <section class="col-xs-12 col-sm-6 col-md-6">
-
-                <h2>Managing your application</h2>
-
-                <h3>Web Console</h3>
-                <p>You can use the OpenShift web console to enable additional capabilities via cartridges, add collaborator access authorizations, designate custom domain aliases, and manage domain memberships.</p>
-
-                <h3>Command Line Tools</h3>
-                <p>Installing the <a href="https://www.openshift.com/developers/rhc-client-tools-install">OpenShift RHC client tools</a> allows you complete control of your cloud environment. Read more on how to manage your application from the command line in our <a href="https://www.openshift.com/user-guide">User Guide</a>.
-                </p>
-
-                <h2>Development Resources</h2>
-                  <ul>
-                    <li><a href="https://www.openshift.com/developers">Developer Center</a></li>
-                    <li><a href="https://www.openshift.com/user-guide">User Guide</a></li>
-                    <li><a href="https://www.openshift.com/forums/openshift">OpenShift forums</a></li>
-                    <li><a href="http://stackoverflow.com/questions/tagged/openshift">Stack Overflow questions for OpenShift</a></li>
-                    <li><a href="http://webchat.freenode.net/?randomnick=1&channels=openshift&uio=d4">IRC channel at #openshift on freenode.net</a></li>
-                    <li><a href="http://git-scm.com/documentation">Git documentation</a></li>
-                  </ul>
-
-
-          </section>
-        </div>
-
+'''
+    for index in range(int(starti)-1, int(endi)):
+        fileName, fileExtension = os.path.splitext(files[index])
+        fileSize = os.path.getsize(download_root_dir+"/images/"+files[index])
+        outstring += '''<a class="xhfbfile" href="#" onclick='window.setLink("/download/?filepath='''+ \
+        download_root_dir.replace('\\', '/')+'''/images/'''+files[index]+'''",0); return false;'>'''+ \
+        files[index]+'''<span style="position: absolute; z-index: 4;"><br />
+        <img src="/download/?filepath='''+ \
+        download_root_dir.replace('\\', '/')+'''/images/'''+files[index]+'''" width="150px"/></span></a> ('''+str(sizeof_fmt(fileSize))+''')<br />'''
+    return outstring
+#@+node:cmsxh.20131226100304.3681: ** sizeof_fmt
+def sizeof_fmt(num):
+    for x in ['bytes','kb','mb','gb']:
+        if num < 1024.0:
+            return "%3.1f %s" % (num, x)
+        num /= 1024.0
+    return "%3.1f %s" % (num, 'tb')
+#@+node:cmsxh.20131226100304.3682: ** class CMSimply
+class CMSimply(object):
+    _cp_config = {
+    # if there is no utf-8 encoding, no Chinese input available
+    'tools.encode.encoding': 'utf-8',
+    'tools.sessions.on' : True,
+    'tools.sessions.storage_type' : 'file',
+    'tools.sessions.locking' : 'explicit',
+    'tools.sessions.storage_path' : data_dir+'/tmp',
+    # session timeout is 60 minutes
+    'tools.sessions.timeout' : 60
+    }
+    
+    #@+others
+    #@+node:cmsxh.20140211204322.1703: *3* __init__
+    def __init__(self):
+            # hope to create downloads and images directories　
+            if not os.path.isdir(download_root_dir+"downloads"):
+                try:
+                    os.makedirs(download_root_dir+"downloads")
+                except:
+                    print("mkdir error")
+            if not os.path.isdir(download_root_dir+"images"):
+                try:
+                    os.makedirs(download_root_dir+"images")
+                except:
+                    print("mkdir error")
+            if not os.path.isdir(download_root_dir+"tmp"):
+                try:
+                    os.makedirs(download_root_dir+"tmp")
+                except:
+                    print("mkdir error")
+    #@+node:cmsxh.20131226100304.3683: *3* index
+    @cherrypy.expose
+    def index(self, heading=None):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        if heading == None:
+            heading = head[0]
+        page_order = head.index(heading)
+        if page_order == 0:
+            last_page = ""
+        else:
+            last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>previous page</a>"
+        if page_order == len(head) - 1:
+            # no next page
+            next_page = ""
+        else:
+            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>next page</a> >> "+ head[page_order+1]
+        if heading == None:
+            #  while there is no content in content.htm
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+head[0]+"</h1>"+search_content(head, page, head[0])+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+        else:
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+search_content(head, page, heading)+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+    #@+node:cmsxh.20131226100304.3684: *3* default
+    # default method, if there is no corresponding method, cherrypy will redirect to default method
+    # need *args and **kwargs as input variables for all possible URL links
+    @cherrypy.expose
+    def default(self, attr='default', *args, **kwargs):
+        raise cherrypy.HTTPRedirect("/")
+    #@+node:cmsxh.20131230000041.1602: *3* error_log
+    @cherrypy.expose
+    def error_log(self, info="Error"):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>ERROR</h1>"+info+"</section></div></body></html>"
+    #@+node:cmsxh.20131226100304.3685: *3* login
+    @cherrypy.expose
+    def login(self):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        if not self.isAdmin():
+            return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>Login</h1><form method='post' action='checkLogin'> \
+        Password:<input type='password' name='password'> \
+        <input type='submit' value='login'></form> \
+        </section></div></body></html>"
+        else:
+            raise cherrypy.HTTPRedirect("/edit_page")
+    #@+node:cmsxh.20131226100304.3686: *3* logout
+    @cherrypy.expose
+    def logout(self):
+        cherrypy.session.delete()
+        raise cherrypy.HTTPRedirect("/")
+    #@+node:cmsxh.20131226100304.3687: *3* checkLogin
+    @cherrypy.expose
+    def checkLogin(self, password=None):
+        site_title, saved_password = parse_config()
+        hashed_password = hashlib.sha512(password.encode('utf-8')).hexdigest()
+        if hashed_password == saved_password:
+            cherrypy.session['admin'] = 1
+            raise cherrypy.HTTPRedirect("/edit_page")
+        raise cherrypy.HTTPRedirect("/")
+    #@+node:cmsxh.20131226100304.3688: *3* get_page
+    # seperate page need heading and edit variables, if edit=1, system will enter edit mode
+    # single page edit will use ssavePage to save content, it means seperate save page
+    @cherrypy.expose
+    def get_page(self, heading=None, edit=0, *args, **kwargs):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        try:
+            pagecontent = search_content(head, page, heading)
+            page_order = head.index(heading)
+        except:
+            heading = head[0]
+            pagecontent = page[0]
+            page_order = 0
+        if page_order == 0:
+            # no last page
+            last_page = ""
+        else:
+            last_page = head[page_order-1] + " << <a href='get_page?heading="+head[page_order-1]+"'>previous page</a>"
+        if page_order == len(head) - 1:
+            # no next page
+            next_page = ""
+        else:
+            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>next page</a> >> "+ head[page_order+1]
         
-        <footer>
-          <div class="logo"><a href="https://www.openshift.com/"></a></div>
-        </footer>
-</section>
-</body>
-</html>'''
+        # edit=0 for viewpage
+        if edit == 0:
+            if heading == None:
+                return page[0]
+            else:
+                return self.set_css()+"<div class='container'><nav>"+ \
+                directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+pagecontent+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+        # enter edit mode
+        else:
+            # check if administrator
+            if not self.isAdmin():
+                raise cherrypy.HTTPRedirect("/login")
+            else:
+                pagedata = "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+search_content(head, page, heading)
+                outstring = last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata), page_order)
+                return outstring
+    #@+node:cmsxh.20131226100304.3689: *3* isAdmin
+    def isAdmin(self):
+        if cherrypy.session.get('admin') == 1:
+            return True
+        else:
+            return False
+    #@+node:cmsxh.20131226100304.3690: *3* edit_page
+    # edit all page content
+    @cherrypy.expose
+    def edit_page(self):
+        # check if administrator
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            head, level, page = parse_content()
+            directory = render_menu(head, level, page)
+            pagedata =file_get_contents(data_dir+"content.htm")
+            outstring = tinymce_editor(directory, cgi.escape(pagedata))
+            return outstring
+    #@+node:cmsxh.20131226100304.3691: *3* savePage
+    @cherrypy.expose
+    def savePage(self, page_content=None):
+        # check if administrator
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        if page_content == None:
+            return self.error_log("no content to save!")
+        # we need to check if page heading is redundant
+        file = open(data_dir+"content.htm", "w", encoding="utf-8")
+        # in Windows client operator, to avoid textarea add extra \n
+        page_content = page_content.replace("\n","")
+        file.write(page_content)
+        file.close()
+        raise cherrypy.HTTPRedirect("/edit_page")
+    #@+node:cmsxh.20131226100304.3692: *3* ssavePage
+    # seperate save page
+    @cherrypy.expose
+    def ssavePage(self, page_content=None, page_order=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        if page_content == None:
+            return self.error_log("no content to save!")
+        page_content = page_content.replace("\n","")
+        head, level, page = parse_content()
+        file = open(data_dir+"content.htm", "w", encoding="utf-8")
+        for index in range(len(head)):
+            if index == int(page_order):
+                file.write(page_content)
+            else:
+                file.write("<h"+str(level[index])+">"+str(head[index])+"</h"+str(level[index])+">"+str(page[index]))
+        file.close()
+        # go back to origin edit status
+        edit_url = "/get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
+        raise cherrypy.HTTPRedirect(edit_url)
+    #@+node:cmsxh.20131226100304.3694: *3* fileuploadform
+    @cherrypy.expose
+    def fileuploadform(self):
+        if self.isAdmin():
+            head, level, page = parse_content()
+            directory = render_menu(head, level, page)
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>file upload</h1>"+'''
+<script src="/static/jquery.js" type="text/javascript"></script>
+<script src="/static/axuploader.js" type="text/javascript"></script>
+<script>
+$(document).ready(function(){
+$('.prova').axuploader({url:'/fileaxupload', allowExt:['jpg','png','gif','7z','pdf','zip','flv','stl'],
+finish:function(x,files)
+        {
+            alert('All files have been uploaded: '+files);
+        },
+enable:true,
+remotePath:function(){
+  return 'downloads/';
+}
+});
+});
+</script>
+<div class="prova"></div>
+<input type="button" onclick="$('.prova').axuploader('disable')" value="asd" />
+<input type="button" onclick="$('.prova').axuploader('enable')" value="ok" />
+</section></body></html>
+'''
+        else:
+            raise cherrypy.HTTPRedirect("/login")
+    #@+node:cmsxh.20131226100304.3695: *3* fileaxupload
+    @cherrypy.expose
+    def fileaxupload(self, *args, **kwargs):
+        if self.isAdmin():
+            filename = kwargs["ax-file-name"]
+            flag = kwargs["start"]
+            if flag == 0:
+                file = open(download_root_dir+"downloads/"+filename, "wb")
+            else:
+                file = open(download_root_dir+"downloads/"+filename, "ab")
+            file.write(cherrypy.request.body.read())
+            file.close()
+            return "files uploaded!"
+        else:
+            raise cherrypy.HTTPRedirect("/login")
+    #@+node:cmsxh.20140101145643.3406: *3* flvplayer
+    @cherrypy.expose
+    def flvplayer(self, filepath=None):
+        outstring = '''
+    <object type="application/x-shockwave-flash" data="/static/player_flv_multi.swf" width="320" height="240">
+         <param name="movie" value="player_flv_multi.swf" />
+         <param name="allowFullScreen" value="true" />
+         <param name="FlashVars" value="flv='''+filepath+'''&amp;width=320&amp;height=240&amp;showstop=1&amp;showvolume=1&amp;showtime=1
+         &amp;startimage=/static/startimage_en.jpg&amp;showfullscreen=1&amp;bgcolor1=189ca8&amp;bgcolor2=085c68
+         &amp;playercolor=085c68" />
+    </object>
+    '''
+        return outstring
+    #@+node:cmsxh.20131226100304.3696: *3* imageuploadform
+    @cherrypy.expose
+    def imageuploadform(self):
+        if self.isAdmin():
+            head, level, page = parse_content()
+            directory = render_menu(head, level, page)
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>image upload</h1>"+'''
+<script src="/static/jquery.js" type="text/javascript"></script>
+<script src="/static/axuploader.js" type="text/javascript"></script>
+<script>
+$(document).ready(function(){
+$('.prova').axuploader({url:'/imageaxupload', allowExt:['jpg','png','gif'],
+finish:function(x,files)
+        {
+            alert('All files have been uploaded: '+files);
+        },
+enable:true,
+remotePath:function(){
+  return 'images/';
+}
+});
+});
+</script>
+<div class="prova"></div>
+<input type="button" onclick="$('.prova').axuploader('disable')" value="asd" />
+<input type="button" onclick="$('.prova').axuploader('enable')" value="ok" />
+'''
+        else:
+            raise cherrypy.HTTPRedirect("/login")
+    #@+node:cmsxh.20131226100304.3697: *3* imageaxupload
+    @cherrypy.expose
+    def imageaxupload(self, *args, **kwargs):
+        if self.isAdmin():
+            filename = kwargs["ax-file-name"]
+            flag = kwargs["start"]
+            if flag == 0:
+                file = open(download_root_dir+"images/"+filename, "wb")
+            else:
+                file = open(download_root_dir+"images/"+filename, "ab")
+            file.write(cherrypy.request.body.read())
+            file.close()
+            return "image files uploaded!"
+        else:
+            raise cherrypy.HTTPRedirect("/login")
+    #@+node:cmsxh.20131226100304.3698: *3* file_selector
+    @cherrypy.expose
+    def file_selector(self, type=None, page=1, item_per_page=10, keyword=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            if type == "downloads":
+                #return downloads_file_selector()
+                return file_lister("downloads", type, page, item_per_page)
+            elif type == "image":
+                #return images_file_selector()
+                return file_lister("images", type, page, item_per_page)
+    #@+node:cmsxh.20131226100304.3699: *3* download_list
+    @cherrypy.expose
+    def download_list(self, item_per_page=5, page=1, keyword=None, *args, **kwargs):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        # cherrypy.session['admin'] = 1
+        # cherrypy.session.get('admin')
+        files = os.listdir(download_root_dir+"downloads/")
+        total_rows = len(files)
+        totalpage = math.ceil(total_rows/int(item_per_page))
+        starti = int(item_per_page) * (int(page) - 1) + 1
+        endi = starti + int(item_per_page) - 1
+        outstring = "<form method='post' action='delete_file'>"
+        notlast = False
+        if total_rows > 0:
+            outstring += "<br />"
+            if (int(page) * int(item_per_page)) < total_rows:
+                notlast = True
+            if int(page) > 1:
+                outstring += "<a href='"
+                outstring += "/download_list?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'><<</a> "
+                page_num = int(page) - 1
+                outstring += "<a href='"
+                outstring += "/download_list?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>previous page</a> "
+            span = 10
+            for index in range(int(page)-span, int(page)+span):
+                if index>= 0 and index< totalpage:
+                    page_now = index + 1 
+                    if page_now == int(page):
+                        outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
+                    else:
+                        outstring += "<a href='"
+                        outstring += "/download_list?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                        outstring += "'>"+str(page_now)+"</a> "
 
-    status = '200 OK'
-    response_headers = [('Content-Type', ctype), ('Content-Length', str(len(response_body)))]
-    #
-    start_response(status, response_headers)
-    return [response_body.encode('utf-8') ]
+            if notlast == True:
+                nextpage = int(page) + 1
+                outstring += " <a href='"
+                outstring += "/download_list?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>next page</a>"
+                outstring += " <a href='"
+                outstring += "/download_list?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>>></a><br /><br />"
+            if (int(page) * int(item_per_page)) < total_rows:
+                notlast = True
+                outstring += downloadlist_access_list(files, starti, endi)+"<br />"
+            else:
+                outstring += "<br /><br />"
+                outstring += downloadlist_access_list(files, starti, total_rows)+"<br />"
+            
+            if int(page) > 1:
+                outstring += "<a href='"
+                outstring += "/download_list?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'><<</a> "
+                page_num = int(page) - 1
+                outstring += "<a href='"
+                outstring += "/download_list?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>previous page</a> "
+            span = 10
+            for index in range(int(page)-span, int(page)+span):
+            #for ($j=$page-$range;$j<$page+$range;$j++)
+                if index >=0 and index < totalpage:
+                    page_now = index + 1
+                    if page_now == int(page):
+                        outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
+                    else:
+                        outstring += "<a href='"
+                        outstring += "/download_list?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                        outstring += "'>"+str(page_now)+"</a> "
+            if notlast == True:
+                nextpage = int(page) + 1
+                outstring += " <a href='"
+                outstring += "/download_list?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>next page</a>"
+                outstring += " <a href='"
+                outstring += "/download_list?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "'>>></a>"
+        else:
+            outstring += "no data!"
+        outstring += "<br /><br /><input type='submit' value='delete'><input type='reset' value='reset'></form>"
 
-#
-# Below for testing only
-#
-if __name__ == '__main__':
-    from wsgiref.simple_server import make_server
-    httpd = make_server('localhost', 8051, application)
-    # Wait for a single request, serve it and quit.
-    httpd.handle_request()
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+
+        return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Download List</h1>"+outstring+"<br/><br /></body></html>"
+    #@+node:cmsxh.20131226100304.5427: *3* delete_file
+    @cherrypy.expose
+    def delete_file(self, filename=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        if filename == None:
+            outstring = "no file selected!"
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Delete Error</h1>"+outstring+"<br/><br /></body></html>"
+        outstring = "delete all these files?<br /><br />"
+        outstring += "<form method='post' action='doDelete'>"
+        # only one file is selected
+        if isinstance(filename, str):
+            outstring += filename+"<input type='hidden' name='filename' value='"+filename+"'><br />"
+        else:
+            # multiple files selected
+            for index in range(len(filename)):
+                outstring += filename[index]+"<input type='hidden' name='filename' value='"+filename[index]+"'><br />"
+        outstring += "<br /><input type='submit' value='delete'></form>"
+
+        return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Download List</h1>"+outstring+"<br/><br /></body></html>"
+    #@+node:cmsxh.20131226100304.5428: *3* doDelete
+    @cherrypy.expose
+    def doDelete(self, filename=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        # delete files
+        outstring = "all these files will be deleted:<br /><br />"
+        # only select one file
+        if isinstance(filename, str):
+            try:
+                os.remove(download_root_dir+"downloads/"+filename)
+                outstring += filename+" deleted!"
+            except:
+                outstring += filename+"Error, can not delete files!<br />"
+        else:
+            # multiple files selected
+            for index in range(len(filename)):
+                try:
+                    os.remove(download_root_dir+"downloads/"+filename[index])
+                    outstring += filename[index]+" deleted!<br />"
+                except:
+                    outstring += filename[index]+"Error, can not delete files!<br />"
+
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+
+        return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Download List</h1>"+outstring+"<br/><br /></body></html>"
+    #@+node:cmsxh.20131226100304.3700: *3* creo_getvolume
+    @cherrypy.expose
+    def creo_getvolume(self, *args, **kwargs):
+        return '''
+<script src="/static/weblink/pfcUtils.js">
+</script><script  src="/static/weblink/pfcParameterExamples.js"></script><script  src="/static/weblink/pfcComponentFeatExamples.js">
+ document.writeln ("Error loading script!");
+</script><script language="JavaScript">
+    if (!pfcIsWindows())
+        netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+  var session = pfcGetProESession ();
+// for volume
+  var solid = session.CurrentModel;
+    try
+        {
+            createParametersFromArguments ();
+            solid.Regenerate(void null);   
+            properties = solid.GetMassProperty(void null);
+            alert("part volume:"+properties.Volume);
+        }
+    catch (err)
+        {
+            alert ("Exception occurred: "+pfcGetExceptionType (err));
+       }
+</script>
+'''
+    #@+node:cmsxh.20131226100304.3701: *3* anglebracket
+    @cherrypy.expose
+    def anglebracket(self, *args, **kwargs):
+        return '''
+<script src="/static/weblink/pfcUtils.js">
+</script><script src="/static/weblink/wl_header.js">
+document.writeln ("Error loading Pro/Web.Link header!");
+</script><script language="JavaScript">
+if (!pfcIsWindows()) netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+// if the third input is false, it means use session, but will not be displayed
+// ret is the model open return
+ var ret = document.pwl.pwlMdlOpen("angle_bracket_creo.prt", "c:/tmp", false);
+if (!ret.Status) {
+    alert("pwlMdlOpen failed (" + ret.ErrorCode + ")");
+}
+    var session = pfcGetProESession();
+    var window = session.OpenFile(pfcCreate("pfcModelDescriptor").CreateFromFileName("angle_bracket_creo.prt"));
+    var solid = session.GetModel("angle_bracket_creo.prt",pfcCreate("pfcModelType").MDL_PART);
+    var d1,d2,myf,myn,i,j,volume,count,d1Value,d2Value;
+    d1 = solid.GetParam("len1");
+    //d2 = solid.GetParam("width");
+    //myf=20;
+    //myn=20;
+    volume=0;
+    count=0;
+    try
+    {
+            //createParametersFromArguments ();
+            for(i=0;i<=3;i++)
+            {
+                //for(j=0;j<=2;j++)
+                //{
+                    myf=180+i;
+                    //myn=100+i*10;
+         d1Value = pfcCreate ("MpfcModelItem").CreateDoubleParamValue(myf);
+         d2Value = pfcCreate ("MpfcModelItem").CreateDoubleParamValue(myn);
+                    d1.Value = d1Value;
+                    //d2.Value = d2Value;
+                    solid.Regenerate(void null);
+                    properties = solid.GetMassProperty(void null);
+                    //volume = volume + properties.Volume;
+volume = properties.Volume;
+                    count = count + 1;
+alert("execute no: "+count+", part volume:"+volume);
+var newfile = document.pwl.pwlMdlSaveAs("angle_bracket_creo.prt", "c:/tmp", "cadp_w12_py_"+count+".prt");
+if (!newfile.Status) {
+    alert("pwlMdlSaveAs failed (" + newfile.ErrorCode + ")");
+//}
+                }
+            }
+            //alert("totally execute:"+count+"times, part volume:"+volume);
+            //alert("part volume:"+properties.Volume);
+            //alert("part volume to integer:"+Math.round(properties.Volume));
+        }
+    catch(err)
+        {
+            alert ("Exception occurred: "+pfcGetExceptionType (err));
+        }
+</script>
+'''
+    #@+node:cmsxh.20131226100304.3702: *3* search_form
+    @cherrypy.expose
+    def search_form(self):
+        if self.isAdmin():
+            head, level, page = parse_content()
+            directory = render_menu(head, level, page)
+            return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>Search</h1><form method='post' action='doSearch'> \
+        keywords:<input type='text' name='keyword'> \
+        <input type='submit' value='search'></form> \
+        </section></div></body></html>"
+        else:
+            raise cherrypy.HTTPRedirect("/login")
+    #@+node:cmsxh.20131226100304.3703: *3* doSearch
+    @cherrypy.expose
+    def doSearch(self, keyword=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            head, level, page = parse_content()
+            directory = render_menu(head, level, page)
+            match = ""
+            for index in range(len(head)):
+                if keyword != "" and (keyword.lower() in page[index].lower() or \
+                keyword.lower() in head[index].lower()): \
+                    match += "<a href='/get_page?heading="+head[index]+"'>"+head[index]+"</a><br />"
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Search Result</h1>keyword: "+ \
+            keyword.lower()+"<br /><br />in the following pages:<br /><br />"+ \
+            match+" \
+         </section></div></body></html>"
+    #@+node:cmsxh.20131226100304.3704: *3* set_css
+    def set_css(self):
+        outstring = '''<!doctype html><html><head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <title>CMSimply - Simple Cloud CMS</title> \
+    <link rel="stylesheet" type="text/css" href="/static/cmsimply.css">'''+syntaxhighlight()
+        outstring += '''
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function(){
+        $("ul.topmenu> li:has(ul) > a").append('<div class="arrow-right"></div>');
+        $("ul.topmenu > li ul li:has(ul) > a").append('<div class="arrow-right"></div>');
+    });
+    </script>
+    '''
+        if inOpenshift:
+            outstring += '''
+    <script type="text/javascript">
+    if ((location.href.search(/http:/) != -1) && (location.href.search(/login/) != -1)) \
+    window.location= 'https://' + location.host + location.pathname + location.search;
+    </script>
+    '''
+        site_title, password = parse_config()
+        outstring += '''
+    </head><header><h1>'''+site_title+'''</h1> \
+    <confmenu>
+    <ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="/sitemap">Site Map</a></li>
+    '''
+        if self.isAdmin():
+            outstring += '''
+    <li><a href="/edit_page">Edit All</a></li>
+    <li><a href="'''+cherrypy.url(qs=cherrypy.request.query_string)+'''&edit=1">Edit</a></li>
+    <li><a href="/edit_config">Config</a></li>
+    <li><a href="/search_form">Search</a></li>
+    <li><a href="/imageuploadform">image upload</a></li>
+    <li><a href="/fileuploadform">file upload</a></li>
+    <li><a href="/download_list">file list</a></li>
+    <li><a href="/logout">logout</a></li>
+    '''
+        else:
+            outstring += '''
+    <li><a href="/login">login</a></li>
+    '''
+        outstring += '''
+    </ul>
+    </confmenu></header>
+    '''
+        return outstring
+    #@+node:cmsxh.20131226100304.3705: *3* edit_config
+    @cherrypy.expose
+    def edit_config(self):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        if not self.isAdmin():
+            return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>Login</h1><form method='post' action='checkLogin'> \
+        Password:<input type='password' name='password'> \
+        <input type='submit' value='login'></form> \
+        </section></div></body></html>"
+        else:
+            site_title, password = parse_config()
+            # edit config file
+            return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>Edit Config</h1><form method='post' action='saveConfig'> \
+        Site Title:<input type='text' name='site_title' value='"+site_title+"' size='50'><br /> \
+        Password:<input type='text' name='password' value='"+password+"' size='50'><br /> \
+     <input type='hidden' name='password2' value='"+password+"'> \
+        <input type='submit' value='send'></form> \
+        </section></div></body></html>"
+    #@+node:cmsxh.20131226100304.3706: *3* saveConfig
+    @cherrypy.expose
+    def saveConfig(self, site_title=None, password=None, password2=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        if site_title == None or password == None:
+            return self.error_log("no content to save!")
+        old_site_title, old_password = parse_config()
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        if site_title == None or password == None or password2 != old_password or password == '':
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>Error!</h1><a href='/'>Home</a></body></html>"
+        else:
+            if password == password2 and password == old_password:
+                hashed_password = old_password
+            else:
+                hashed_password = hashlib.sha512(password.encode('utf-8')).hexdigest()
+            file = open(data_dir+"config", "w", encoding="utf-8")
+            file.write("siteTitle:"+site_title+"\npassword:"+hashed_password)
+            file.close()
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section><h1>config file saved</h1><a href='/'>Home</a></body></html>"
+    #@+node:cmsxh.20131226100304.3707: *3* listdir
+    # use to check directory variable data
+    @cherrypy.expose
+    def listdir(self):
+        return download_root_dir +","+data_dir
+    #@+node:cmsxh.20131226100304.3708: *3* sitemap
+    @cherrypy.expose
+    def sitemap(self):
+        head, level, page = parse_content()
+        directory = render_menu(head, level, page)
+        sitemap = render_menu(head, level, page, sitemap=1)
+
+        return self.set_css()+"<div class='container'><nav>"+ \
+        directory+"</nav><section><h1>Site Map</h1>"+sitemap+"</section></div></body></html>"
+    #@-others
+#@+node:cmsxh.20131226100304.3709: ** class Download
+class Download:
+    #@+others
+    #@+node:cmsxh.20131226100304.3710: *3* index
+    @cherrypy.expose
+    def index(self, filepath):
+        return serve_file(filepath, "application/x-download", "attachment")
+    #@-others
+#@-others
+root = CMSimply()
+root.download = Download()
+
+# setup static, images and downloads directories
+application_conf = {'/static':{
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': _curdir+"/static"},
+        '/images':{
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': data_dir+"/images"},
+        '/downloads':{
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': data_dir+"/downloads"}
+    }
+
+# if inOpenshift ('OPENSHIFT_REPO_DIR' exists in environment variables) or not inOpenshift
+if inOpenshift:
+    # operate in OpenShift
+    application = cherrypy.Application(root, config = application_conf)
+else:
+    # operate in localhost
+    cherrypy.quickstart(root, config = application_conf)
+#@-leo
