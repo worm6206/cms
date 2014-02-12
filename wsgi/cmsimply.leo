@@ -20,6 +20,7 @@
 <v t="cmsxh.20131226100304.5424"><vh>Delete uploaded files</vh></v>
 <v t="cmsxh.20131226100304.5425"><vh>View uploaded files</vh></v>
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
+<v t="cmsxh.20140212132226.1610"><vh>Error</vh></v>
 </v>
 <v t="cmsxh.20131226100304.3660" a="E"><vh>@path ./</vh>
 <v t="cmsxh.20131226100304.3661" a="E"
@@ -175,5 +176,6 @@ You should have received a copy of the GNU General Public License
 along with CMSimpiy. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
 <t tx="cmsxh.20140108172857.2428">version on public-cmsimply.rhcloud.com
 </t>
+<t tx="cmsxh.20140212132226.1610">in SSL mode no arrow for menu - modified to use local jquery.js file</t>
 </tnodes>
 </leo_file>
