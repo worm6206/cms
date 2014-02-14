@@ -274,7 +274,7 @@ def syntaxhighlight():
 <script type="text/javascript" src="/static/syntaxhighlighter/shBrushPhp.js"></script>
 <script type="text/javascript" src="/static/syntaxhighlighter/shBrushCpp.js"></script>
 <script type="text/javascript" src="/static/syntaxhighlighter/shBrushCss.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCsharp.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCSharp.js"></script>
 <link type="text/css" rel="stylesheet" href="/static/syntaxhighlighter/css/shCoreDefault.css"/>
 <script type="text/javascript">SyntaxHighlighter.all();</script>
 '''
@@ -451,7 +451,7 @@ def file_lister(directory, type=None, page=1, item_per_page=10):
             page_num = int(page) - 1
             outstring += "<a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-            outstring += "'>previous page</a> "
+            outstring += "'>Previous</a> "
         span = 10
         for index in range(int(page)-span, int(page)+span):
         #for ($j=$page-$range;$j<$page+$range;$j++)
@@ -468,7 +468,7 @@ def file_lister(directory, type=None, page=1, item_per_page=10):
             nextpage = int(page) + 1
             outstring += " <a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-            outstring += "'>next page</a>"
+            outstring += "'>Next</a>"
             outstring += " <a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
             outstring += "'>>></a><br /><br />"
@@ -491,7 +491,7 @@ def file_lister(directory, type=None, page=1, item_per_page=10):
             page_num = int(page) - 1
             outstring += "<a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-            outstring += "'>previous page</a> "
+            outstring += "'>Previous</a> "
         span = 10
         for index in range(int(page)-span, int(page)+span):
         #for ($j=$page-$range;$j<$page+$range;$j++)
@@ -507,7 +507,7 @@ def file_lister(directory, type=None, page=1, item_per_page=10):
             nextpage = int(page) + 1
             outstring += " <a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-            outstring += "'>next page</a>"
+            outstring += "'>Next</a>"
             outstring += " <a href='"
             outstring += "/file_selector?type="+type+"&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
             outstring += "'>>></a>"
@@ -610,12 +610,12 @@ class CMSimply(object):
         if page_order == 0:
             last_page = ""
         else:
-            last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>previous page</a>"
+            last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
         if page_order == len(head) - 1:
             # no next page
             next_page = ""
         else:
-            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>next page</a> >> "+ head[page_order+1]
+            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
         if heading == None:
             #  while there is no content in content.htm
             return self.set_css()+"<div class='container'><nav>"+ \
@@ -681,12 +681,12 @@ class CMSimply(object):
             # no last page
             last_page = ""
         else:
-            last_page = head[page_order-1] + " << <a href='get_page?heading="+head[page_order-1]+"'>previous page</a>"
+            last_page = head[page_order-1] + " << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
         if page_order == len(head) - 1:
             # no next page
             next_page = ""
         else:
-            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>next page</a> >> "+ head[page_order+1]
+            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
         
         # edit=0 for viewpage
         if edit == 0:
@@ -899,7 +899,7 @@ remotePath:function(){
                 page_num = int(page) - 1
                 outstring += "<a href='"
                 outstring += "/download_list?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-                outstring += "'>previous page</a> "
+                outstring += "'>Previous</a> "
             span = 10
             for index in range(int(page)-span, int(page)+span):
                 if index>= 0 and index< totalpage:
@@ -915,7 +915,7 @@ remotePath:function(){
                 nextpage = int(page) + 1
                 outstring += " <a href='"
                 outstring += "/download_list?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-                outstring += "'>next page</a>"
+                outstring += "'>Next</a>"
                 outstring += " <a href='"
                 outstring += "/download_list?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>>></a><br /><br />"
@@ -933,7 +933,7 @@ remotePath:function(){
                 page_num = int(page) - 1
                 outstring += "<a href='"
                 outstring += "/download_list?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-                outstring += "'>previous page</a> "
+                outstring += "'>Previous</a> "
             span = 10
             for index in range(int(page)-span, int(page)+span):
             #for ($j=$page-$range;$j<$page+$range;$j++)
@@ -949,7 +949,7 @@ remotePath:function(){
                 nextpage = int(page) + 1
                 outstring += " <a href='"
                 outstring += "/download_list?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
-                outstring += "'>next page</a>"
+                outstring += "'>Next</a>"
                 outstring += " <a href='"
                 outstring += "/download_list?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>>></a>"

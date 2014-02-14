@@ -19,6 +19,8 @@
 <v t="cmsxh.20140101145643.1604"><vh>License</vh></v>
 <v t="cmsxh.20131226100304.5424"><vh>Delete uploaded files</vh></v>
 <v t="cmsxh.20131226100304.5425"><vh>View uploaded files</vh></v>
+<v t="cmsxh.20140212132226.1611"><vh>View uploaded images</vh></v>
+<v t="cmsxh.20140212132226.1612"><vh>Delete tmp session files</vh></v>
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
 <v t="cmsxh.20140212132226.1610"><vh>Error</vh></v>
 </v>
@@ -177,5 +179,9 @@ along with CMSimpiy. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
 <t tx="cmsxh.20140108172857.2428">version on public-cmsimply.rhcloud.com
 </t>
 <t tx="cmsxh.20140212132226.1610">in SSL mode no arrow for menu - modified to use local jquery.js file</t>
+<t tx="cmsxh.20140212132226.1611">add images directory file list
+
+when administrator press list image file button, system will check if thumb images are exist or not, the list will show thum image file and press to view original image file.</t>
+<t tx="cmsxh.20140212132226.1612">see if we need to delete all the tmp session files after logout</t>
 </tnodes>
 </leo_file>
