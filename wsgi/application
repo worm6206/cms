@@ -601,7 +601,7 @@ class CMSimply(object):
                     print("mkdir error")
     #@+node:cmsxh.20131226100304.3683: *3* index
     @cherrypy.expose
-    def index(self, heading=None):
+    def index(self, heading=None, *args, **kwargs):
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
         if heading == None:
