@@ -56,6 +56,7 @@ else:
     # while program is executed in localhost
     download_root_dir = _curdir
     data_dir = _curdir
+
 #@-<<declarations>>
 #@+others
 #@+node:cmsxh.20131226100304.3663: ** downloadlist_access_list
@@ -266,20 +267,7 @@ return false;
 '''
 #@+node:cmsxh.20131226100304.3671: ** syntaxhighlight
 def syntaxhighlight():
-    return '''
-<script type="text/javascript" src="/static/syntaxhighlighter/shCore.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJScript.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJava.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPython.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushSql.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushXml.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPhp.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCpp.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCss.js"></script>
-<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCSharp.js"></script>
-<link type="text/css" rel="stylesheet" href="/static/syntaxhighlighter/css/shCoreDefault.css"/>
-<script type="text/javascript">SyntaxHighlighter.all();</script>
-'''
+    return None
 #@+node:cmsxh.20131226100304.3672: ** editorhead
 def editorhead():
     return '''
@@ -585,27 +573,26 @@ class CMSimply(object):
     #@+others
     #@+node:cmsxh.20140211204322.1703: *3* __init__
     def __init__(self):
-            # hope to create downloads and images directories　
-            if not os.path.isdir(download_root_dir+"downloads"):
-                try:
-                    os.makedirs(download_root_dir+"downloads")
-                except:
-                    print("mkdir error")
-            if not os.path.isdir(download_root_dir+"images"):
-                try:
-                    os.makedirs(download_root_dir+"images")
-                except:
-                    print("mkdir error")
-            if not os.path.isdir(download_root_dir+"tmp"):
-                try:
-                    os.makedirs(download_root_dir+"tmp")
-                except:
-                    print("mkdir error")
+        # hope to create downloads and images directories　
+        if not os.path.isdir(download_root_dir+"downloads"):
+            try:
+                os.makedirs(download_root_dir+"downloads")
+            except:
+                print("mkdir error")
+        if not os.path.isdir(download_root_dir+"images"):
+            try:
+                os.makedirs(download_root_dir+"images")
+            except:
+                print("mkdir error")
+        if not os.path.isdir(download_root_dir+"tmp"):
+            try:
+                os.makedirs(download_root_dir+"tmp")
+            except:
+                print("mkdir error")
+
     #@+node:cmsxh.20131226100304.3683: *3* index
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
-        #cherrypy.response.headers['Retry-After'] = 60
-        cherrypy.response.status = 404
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
         if heading == None:
@@ -633,6 +620,8 @@ class CMSimply(object):
     # need *args and **kwargs as input variables for all possible URL links
     @cherrypy.expose
     def default(self, attr='default', *args, **kwargs):
+        cherrypy.response.headers['Retry-After'] = 60
+        cherrypy.response.status = 404
         raise cherrypy.HTTPRedirect("/")
     #@+node:cmsxh.20131230000041.1602: *3* error_log
     @cherrypy.expose
@@ -1248,8 +1237,10 @@ if (!newfile.Status) {
         directory+"</nav><section><h1>Site Map</h1>"+sitemap+"</section></div></body></html>"
     #@+node:2014pythonE.20140312072052.1941: *3* brython
     @cherrypy.expose
-    def brython(self):
+    def brython(self, *args, **kwargs):
         return '''
+    <html>
+    <head>
     <link rel="stylesheet" type="text/css" href="/static/console.css">
     <link rel="stylesheet" type="text/css" href="/static/brython.css">
     <script type="text/javascript" src="/static/Brython2.0.0-20140209-164925/brython.js"></script>
@@ -1311,7 +1302,8 @@ if (!newfile.Status) {
         console.log("Javascript code run in "+(t1-t0)+" ms")
     }
     </script>
-
+    </head>
+    <body>
     <!--<body onload="brython({debug:1, cache:'version'})">-->
 
     <div style="text-align:center">
