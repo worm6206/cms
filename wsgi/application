@@ -604,9 +604,8 @@ class CMSimply(object):
     #@+node:cmsxh.20131226100304.3683: *3* index
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
-        # Yen try
-        cherrypy.response.headers['Retry-After'] = 60
-        cherrypy.response.status = 404
+        #cherrypy.response.headers['Retry-After'] = 60
+        #cherrypy.response.status = 404
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
         if heading == None:
@@ -628,6 +627,7 @@ class CMSimply(object):
         else:
             return self.set_css()+"<div class='container'><nav>"+ \
             directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+search_content(head, page, heading)+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+
     #@+node:cmsxh.20131226100304.3684: *3* default
     # default method, if there is no corresponding method, cherrypy will redirect to default method
     # need *args and **kwargs as input variables for all possible URL links
