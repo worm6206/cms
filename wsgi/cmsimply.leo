@@ -22,6 +22,7 @@
 <v t="cmsxh.20140212132226.1611"><vh>View uploaded images</vh></v>
 <v t="cmsxh.20140212132226.1612"><vh>Delete tmp session files</vh></v>
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
+<v t="2014pythonE.20140312072052.1942"><vh>about syntaxhighlight</vh></v>
 <v t="cmsxh.20140212132226.1610"><vh>Error</vh></v>
 </v>
 <v t="cmsxh.20131226100304.3660" a="E"><vh>@path ./</vh>
@@ -35,6 +36,25 @@ expanded="cmsxh.20131226100304.3682,cmsxh.20131226100304.3709,"><vh>@file applic
 </v>
 </vnodes>
 <tnodes>
+<t tx="2014pythonE.20140312072052.1942">At this moment, the syntaxhighlight cause the Brython error.
+When syntaxhighlight return anything but None, error arises.
+
+It is believed that the CherryPy header cause this problem.
+
+According to: http://stackoverflow.com/questions/6054473/python-cherrypy-how-to-add-header
+
+"When you set a status code by raising HTTPError, the headers in cherrypy.response.headers are ignored. Set the HTTP status by setting cherrypy.response.status instead:"
+
+add the following lines into index() to eliminate this problem:
+
+# Yen try
+cherrypy.response.headers['Retry-After'] = 60
+cherrypy.response.status = 404
+
+According to: http://cherrypy.readthedocs.org/en/latest/tutorial/basics.html
+
+Since "cherrypy.response.headers contains a mapping with the header options that will be returned by the server, before the contents get sent."
+</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 
