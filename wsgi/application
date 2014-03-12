@@ -605,7 +605,7 @@ class CMSimply(object):
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
         #cherrypy.response.headers['Retry-After'] = 60
-        #cherrypy.response.status = 404
+        cherrypy.response.status = 404
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
         if heading == None:
