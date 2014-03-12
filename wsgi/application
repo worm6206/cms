@@ -267,7 +267,20 @@ return false;
 '''
 #@+node:cmsxh.20131226100304.3671: ** syntaxhighlight
 def syntaxhighlight():
-    return None
+    return '''
+<script type="text/javascript" src="/static/syntaxhighlighter/shCore.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJScript.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushJava.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPython.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushSql.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushXml.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushPhp.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCpp.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCss.js"></script>
+<script type="text/javascript" src="/static/syntaxhighlighter/shBrushCSharp.js"></script>
+<link type="text/css" rel="stylesheet" href="/static/syntaxhighlighter/css/shCoreDefault.css"/>
+<script type="text/javascript">SyntaxHighlighter.all();</script>
+'''
 #@+node:cmsxh.20131226100304.3672: ** editorhead
 def editorhead():
     return '''
@@ -593,6 +606,8 @@ class CMSimply(object):
     #@+node:cmsxh.20131226100304.3683: *3* index
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
+        cherrypy.response.headers['Retry-After'] = 60
+        cherrypy.response.status = 503
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
         if heading == None:
@@ -1237,7 +1252,7 @@ if (!newfile.Status) {
         directory+"</nav><section><h1>Site Map</h1>"+sitemap+"</section></div></body></html>"
     #@+node:2014pythonE.20140312072052.1941: *3* brython
     @cherrypy.expose
-    def brython(self, *args, **kwargs):
+    def brython(self):
         return '''
     <html>
     <head>
