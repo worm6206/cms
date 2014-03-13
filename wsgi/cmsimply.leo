@@ -32,6 +32,9 @@ expanded="cmsxh.20131226100304.3682,cmsxh.20131226100304.3709,"><vh>@file applic
 <v t="cmsxh.20131226100304.3820" a="E"><vh>@path static</vh>
 <v t="cmsxh.20131226100304.3821"><vh>@edit cmsimply.css</vh></v>
 <v t="cmsxh.20131226100304.3822"><vh>@edit axuploader.js</vh></v>
+<v t="2014pythonE.20140312215910.1786"><vh>@edit console.css</vh></v>
+<v t="2014pythonE.20140312215910.1787"><vh>@edit brython.css</vh></v>
+<v t="2014pythonE.20140312215910.1788"><vh>@edit editor.py</vh></v>
 </v>
 </v>
 </vnodes>

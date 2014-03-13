@@ -632,9 +632,7 @@ class CMSimply(object):
     # default method, if there is no corresponding method, cherrypy will redirect to default method
     # need *args and **kwargs as input variables for all possible URL links
     @cherrypy.expose
-    def default(self, attr='default', *args, **kwargs):
-        cherrypy.response.headers['Retry-After'] = 60
-        cherrypy.response.status = 404
+    def default_void(self, attr='default', *args, **kwargs):
         raise cherrypy.HTTPRedirect("/")
     #@+node:cmsxh.20131230000041.1602: *3* error_log
     @cherrypy.expose
@@ -1252,15 +1250,18 @@ if (!newfile.Status) {
     @cherrypy.expose
     def brython(self):
         return '''
+    <!doctype html>
     <html>
     <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
     <link rel="stylesheet" type="text/css" href="/static/console.css">
     <link rel="stylesheet" type="text/css" href="/static/brython.css">
     <script type="text/javascript" src="/static/Brython2.0.0-20140209-164925/brython.js"></script>
     <script type="text/javascript">
     window.onload = function(){
-        brython({debug:1, cache:'version'});
-    }
+        brython({debug:0, cache:'none'});
+        alert("test");
+    };
     </script>
 
     <script src="http://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript">
@@ -1385,6 +1386,8 @@ if (!newfile.Status) {
     <textarea id="console"></textarea>
     </div>
     </div>
+    </body>
+    </html>
     '''
     #@-others
 #@+node:cmsxh.20131226100304.3709: ** class Download
