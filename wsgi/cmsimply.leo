@@ -23,6 +23,7 @@
 <v t="cmsxh.20140212132226.1612"><vh>Delete tmp session files</vh></v>
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
 <v t="2014pythonE.20140312072052.1942"><vh>about syntaxhighlight</vh></v>
+<v t="2014pythonE.20140313091306.1898"><vh>Brython ajax</vh></v>
 <v t="cmsxh.20140212132226.1610"><vh>Error</vh></v>
 </v>
 <v t="cmsxh.20131226100304.3660" a="E"><vh>@path ./</vh>
@@ -57,7 +58,56 @@ cherrypy.response.status = 404
 According to: http://cherrypy.readthedocs.org/en/latest/tutorial/basics.html
 
 Since "cherrypy.response.headers contains a mapping with the header options that will be returned by the server, before the contents get sent."
+
+The real problem comes from default(), while the CMSimply class operated normally, the default() sent some header message to cause brython not working.
+
+The syntaxhighlight is not the problem anymore.
 </t>
+<t tx="2014pythonE.20140313091306.1898">&lt;div id="result"&gt;(empty)&lt;/div&gt;
+&lt;button id="get_text"&gt;get text file&lt;/button&gt;
+&lt;button id="i_dont_exist"&gt;file not found&lt;/button&gt;
+&lt;button id="get_test"&gt;GET request&lt;/button&gt;
+&lt;button id="post_test"&gt;POST request&lt;/button&gt;
+&lt;button id="timeout"&gt;timeout&lt;/button&gt;
+
+&lt;script id="ascript" type="text/python"&gt;
+from browser import ajax,doc
+
+def on_complete(req):
+    print(req.readyState)
+    print('status',req.status)
+    if req.status==200 or req.status==0:
+        doc["result"].html = req.text
+    else:
+        doc["result"].html = "error "+req.text
+
+def err_msg():
+    doc["result"].html = "server didn't reply after %s seconds" %timeout
+
+timeout = 4
+
+def go(url):
+    req = ajax.ajax()
+    req.bind('complete',on_complete)
+    req.set_timeout(timeout,err_msg)
+    req.open('GET',url,True)
+    req.send()
+
+def post(url):
+    req = ajax.ajax()
+    req.bind('complete',on_complete)
+    req.set_timeout(timeout,err_msg)
+    req.open('POST',url,True)
+    req.set_header('content-type','application/x-www-form-urlencoded')
+    req.send({'foo':34})
+
+# bindings
+doc['get_text'].bind('click',lambda ev:go('ajax_data.txt'))
+doc['i_dont_exist'].bind('click',lambda ev:go('i_dont_exist.txt'))
+doc['get_test'].bind('click',lambda ev:go('/cgi-bin/get_test.py'))
+doc['post_test'].bind('click',lambda ev:post('/cgi-bin/post_test.py'))
+doc['timeout'].bind('click',lambda ev:go('/cgi-bin/timeout.py'))
+&lt;/script&gt;</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 
@@ -204,7 +254,9 @@ along with CMSimpiy. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
 <t tx="cmsxh.20140212132226.1610">in SSL mode no arrow for menu - modified to use local jquery.js file</t>
 <t tx="cmsxh.20140212132226.1611">add images directory file list
 
-when administrator press list image file button, system will check if thumb images are exist or not, the list will show thum image file and press to view original image file.</t>
+when administrator press list image file button, system will check if thumb images are exist or not, the list will show thum image file and press to view original image file.
+
+We may also want to delete image files.</t>
 <t tx="cmsxh.20140212132226.1612">see if we need to delete all the tmp session files after logout</t>
 </tnodes>
 </leo_file>

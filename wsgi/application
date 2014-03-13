@@ -628,6 +628,7 @@ class CMSimply(object):
             return self.set_css()+"<div class='container'><nav>"+ \
             directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+search_content(head, page, heading)+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
 
+
     #@+node:cmsxh.20131226100304.3684: *3* default
     # default method, if there is no corresponding method, cherrypy will redirect to default method
     # need *args and **kwargs as input variables for all possible URL links
@@ -1260,7 +1261,6 @@ if (!newfile.Status) {
     <script type="text/javascript">
     window.onload = function(){
         brython({debug:0, cache:'none'});
-        alert("test");
     };
     </script>
 
@@ -1360,7 +1360,7 @@ if (!newfile.Status) {
     </optgroup>
     </select> 
     </div>
-      <div id="editor"></div>
+      <div id="editor" style="height: 400px; width: 500px"></div>
     </div>
 
     <div>
@@ -1383,7 +1383,7 @@ if (!newfile.Status) {
       </div>
     </div>
     <div style="width:100%;height:100%;">
-    <textarea id="console"></textarea>
+    <textarea id="console" style="height: 380px; width: 500px"></textarea>
     </div>
     </div>
     </body>

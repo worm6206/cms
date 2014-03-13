@@ -15,6 +15,7 @@ has_ace = True
 try:
     editor=JSObject(ace).edit("editor")
     editor.getSession().setMode("ace/mode/python")
+    editor.setTheme("ace/theme/monokai")
 except:
     from browser import html
     editor = html.TEXTAREA(rows=20,cols=70)
@@ -40,7 +41,7 @@ import random
  
 標準答案 = random.randint(1, 100)
 你猜的數字 = int(input("請輸入您所猜的整數:"))
-猜測次數 = 0
+猜測次數 = 1
 while 標準答案 != 你猜的數字:
     if 標準答案 < 你猜的數字:
         print("太大了，再猜一次 :)加油")
@@ -65,7 +66,7 @@ import random
  
 標準答案 = random.randint(1, 100)
 你猜的數字 = int(input("請輸入您所猜的整數:"))
-猜測次數 = 0
+猜測次數 = 1
 while 標準答案 != 你猜的數字:
     if 標準答案 < 你猜的數字:
         print("太大了，再猜一次 :)加油")
