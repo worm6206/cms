@@ -634,6 +634,11 @@ class CMSimply(object):
                 os.makedirs(download_root_dir+"tmp")
             except:
                 print("mkdir error")
+        if not os.path.isdir(data_dir+"brython_programs"):
+            try:
+                os.makedirs(data_dir+"brython_programs")
+            except:
+                print("mkdir error")
 
     #@+node:cmsxh.20131226100304.3683: *3* index
     @cherrypy.expose
