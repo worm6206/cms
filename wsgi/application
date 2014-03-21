@@ -813,7 +813,7 @@ class CMSimply(object):
                 data = editor.replace("\r\n", "\n")
                 out_file.write(data)
             #return str(filename)+"saved!<br /><hr>"+str(data)
-            return str(filename)+"saved!<br />"
+            return str(filename)+" saved!<br />"
     #@+node:cmsxh.20131226100304.3694: *3* fileuploadform
     @cherrypy.expose
     def fileuploadform(self):
