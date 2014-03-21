@@ -801,6 +801,19 @@ class CMSimply(object):
         # go back to origin edit status
         edit_url = "/get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
         raise cherrypy.HTTPRedirect(edit_url)
+    #@+node:2014pythonE.20140321113009.1826: *3* save_program
+    @cherrypy.expose
+    def save_program(self, filename=None, editor=None):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            # open file in wt will use Windows \r\n for new line
+            # use replace method to remove extra lines for Windows environment
+            with open(data_dir+"/brython_programs/"+filename, "wt", encoding="utf-8") as out_file:
+                data = editor.replace("\r\n", "\n")
+                out_file.write(data)
+            #return str(filename)+"saved!<br /><hr>"+str(data)
+            return str(filename)+"saved!<br />"
     #@+node:cmsxh.20131226100304.3694: *3* fileuploadform
     @cherrypy.expose
     def fileuploadform(self):
