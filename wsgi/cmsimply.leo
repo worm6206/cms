@@ -10,9 +10,9 @@
 <preferences/>
 <find_panel_settings/>
 <vnodes>
-<v t="cmsxh.20131226100304.5349"><vh>@settings</vh>
+<v t="cmsxh.20131226100304.5349" a="E"><vh>@settings</vh>
 <v t="cmsxh.20131226100304.5350"><vh>@data qt-gui-plugin-style-sheet</vh></v>
-<v t="cmsxh.20131226100304.5351"><vh>@string initial_split_orientation = vertical</vh></v>
+<v t="cmsxh.20131226100304.5351"><vh>@string initial_split_orientation = horizontal</vh></v>
 </v>
 <v t="cmsxh.20140108172857.2428"><vh>CMSimply public version</vh></v>
 <v t="cmsxh.20131226100304.3770" a="E"><vh>CMSimply Project</vh>
@@ -24,6 +24,13 @@
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
 <v t="2014pythonE.20140312072052.1942"><vh>about syntaxhighlight</vh></v>
 <v t="2014pythonE.20140313091306.1898"><vh>Brython ajax</vh></v>
+<v t="2014pythonE.20140313212213.1898" a="E"><vh>CherryPy ajax example</vh>
+<v t="2014pythonE.20140313212213.1899"><vh>another example</vh></v>
+<v t="2014pythonE.20140313212213.1902"><vh>reference site</vh></v>
+<v t="2014pythonE.20140313212213.1900" a="E"><vh>localStorage</vh>
+<v t="2014pythonE.20140313212213.1901"><vh>example</vh></v>
+</v>
+</v>
 <v t="cmsxh.20140212132226.1610"><vh>Error</vh></v>
 </v>
 <v t="cmsxh.20131226100304.3660" a="E"><vh>@path ./</vh>
@@ -108,6 +115,316 @@ doc['get_test'].bind('click',lambda ev:go('/cgi-bin/get_test.py'))
 doc['post_test'].bind('click',lambda ev:post('/cgi-bin/post_test.py'))
 doc['timeout'].bind('click',lambda ev:go('/cgi-bin/timeout.py'))
 &lt;/script&gt;</t>
+<t tx="2014pythonE.20140313212213.1898">import cherrypy
+import simplejson
+
+class Root(object):
+
+    @cherrypy.expose
+    def update(self):
+        cl = cherrypy.request.headers['Content-Length']
+        rawbody = cherrypy.request.body.read(int(cl))
+        body = simplejson.loads(rawbody)
+        # do_something_with(body)
+        return "Updated %r." % (body,)
+
+    @cherrypy.expose
+    def index(self):
+        return """
+&lt;html&gt;
+&lt;script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"&gt;&lt;/script&gt;
+&lt;script type='text/javascript'&gt;
+function Update() {
+    $.ajax({
+      type: 'POST',
+      url: "update",
+      contentType: "application/json",
+      processData: false,
+      data: $('#updatebox').val(),
+      success: function(data) {alert(data);},
+      dataType: "text"
+    });
+}
+&lt;/script&gt;
+&lt;body&gt;
+&lt;input type='textbox' id='updatebox' value='{}' size='20' /&gt;
+&lt;input type='submit' value='Update' onClick='Update(); return false' /&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"""
+
+cherrypy.quickstart(Root())</t>
+<t tx="2014pythonE.20140313212213.1899">import cherrypy
+import simplejson
+
+class Root:
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def my_route(self):
+
+        result = {"operation": "request", "result": "success"}
+
+        input_json = cherrypy.request.json
+        value = input_json["my_key"]
+
+        #All responses are serialized to JSON. This the same as
+        #return simplejson.dumps(result)
+        return result
+        
+Javascript part:
+
+//assuming that you're using jQuery
+
+var myObject = { "my_key": "my_value" };
+
+$.ajax({
+    type: "POST",
+    url: "my_route",
+    data: JSON.stringify(myObject),
+    contentType: 'application/json',
+    dataType: 'json',
+    error: function() {
+        alert("error");
+    },
+    success: function() {
+        alert("success");
+    }
+});</t>
+<t tx="2014pythonE.20140313212213.1900">localStorage:
+
+存值：
+localStorage.setItem(key,value);
+
+取值：
+localStorage.getItem(key);
+
+移除KEY所對應的內容:
+localStorage.removeItem(key);
+
+清除所有內容
+localStorage.clear();
+
+&lt;script&gt;
+    // set an item
+    localStorage.setItem('name','goofy');
+    // retrieve an item
+    alert(localStorage.getItem('name'));
+    // empty the localStorage completely
+    localStorage.clear();
+&lt;/script&gt;
+
+&lt;script "text/javascript"&gt;
+    start = new Date().getTime();
+    for(i=1;i&lt;=1000;i++)
+        localStorage.setItem(i.toString(),'a' * 1024);
+    elapsed = ((new Date().getTime()) - start)/1000
+    alert(elapsed.toString() + "s");
+&lt;/script&gt;
+
+&lt;script&gt;
+    for(i=0; i&lt;localStorage.length; i++) {
+        key = localStorage.key(i);
+        item = localStorage.getItem(key);
+        // do something with key and item ...
+    }
+&lt;/script&gt;</t>
+<t tx="2014pythonE.20140313212213.1901">example: http://dreamforce.me/wp-content/dream_demo/html5_localstorage/html5_localDemo/html5_localstorage.html
+
+&lt;!DOCTYPE html&gt; 
+&lt;head&gt; 
+	&lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"/&gt; 
+	&lt;title&gt;Cute Bar Demo - SpyreStudios&lt;/title&gt; 
+	&lt;script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js'&gt;&lt;/script&gt; 
+	&lt;script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.js'&gt;&lt;/script&gt; 
+	&lt;script type='text/javascript' src='js/jquery.dataTables.js'&gt;&lt;/script&gt; 
+	
+	&lt;link href="css/jquery.ui.all.css" rel="stylesheet" type="text/css" media="all"/&gt;
+	
+	&lt;link href="css/demo_page.css" rel="stylesheet" type="text/css" media="all"/&gt;
+	&lt;link href="css/demo_table_jui.css" rel="stylesheet" type="text/css" media="all"/&gt;
+	&lt;link href="css/demo_table.css" rel="stylesheet" type="text/css" media="all"/&gt;
+	
+	&lt;script type='text/javascript'&gt; 
+	var currentId = 1;
+	var oTable;
+    $(document).ready(function(){    
+		if (typeof(localStorage) == 'undefined' ) {
+			alert('Your browser does not support HTML5 localStorage. Try upgrading.');
+		} else {
+		try {
+		var currentId = localStorage.getItem("currentId")
+		if(currentId == null)
+		{
+		localStorage.setItem("currentId",1);
+		currentId = 1;
+		}
+		  oTable = $('#localDataList').dataTable({
+					"bJQueryUI": true,
+					"sPaginationType": "full_numbers"
+				});
+		    addLocalStorageToTabel();		
+		} catch (e) {
+	 	 if (e == QUOTA_EXCEEDED_ERR) {
+	 	 	 alert('Quota exceeded!'); //data wasn't successfully saved due to quota exceed so throw an error
+		}
+	    }
+       }
+
+    });
+	
+	function getStoredObjIdsArray()
+	{
+	   var ids = localStorage.getItem("storedObjIds");
+	   var idStrArray;
+	   if(ids!=null)
+		{
+        idStrArray = ids.split(",");
+		}
+		return idStrArray;
+	}
+	function addLocalStorageToTabel()
+	{
+	    oTable.fnClearTable();
+	    var ids_Array = getStoredObjIdsArray();
+		if(ids_Array!=null)
+		{
+		for ( var j = 0; j &lt; ids_Array.length; j++) {
+		    var theId = ids_Array[j];
+			var objStr = localStorage.getItem(theId);
+			if(objStr != null)
+			{
+			   var objField = objStr.split("|");
+			   addDataToTable(theId,objField[0],objField[1]);
+			}
+			}
+	}
+	}
+	
+	function addDataToTable(id,name,age)
+	{
+	  var deleteStr = '&lt;a href="javascript:void(0)" onclick="deleteObjStr('+id+');"&gt;delete&lt;/a&gt;';
+	  oTable.fnAddData( [
+        id,
+		name,
+		age,
+		deleteStr
+		] );
+	}
+	
+	function deleteObjStr(id)
+	{
+	   var objStr = localStorage.getItem(id);
+	   if(objStr!=null)
+	   {
+	       alert(objStr);
+	       alert("in");
+	       localStorage.removeItem(id);
+		   addLocalStorageToTabel();
+	   }
+	}
+	
+
+	
+	function setObjStrTolocalStorage() 
+	{
+	    var name = $("#nameValue").val();
+		if(name==null || name=='')
+		{
+		  alert("please input name value!");
+		  return false;
+		}
+		var age  = $("#ageValue").val();
+		if(age==null || age =='')
+		{
+		  alert("please input age value!");
+		  return false;
+		}
+		if(isNaN(age))
+		{
+		  alert("the age value must be int type!");
+		  return false;
+		}
+		var id   = localStorage.getItem("currentId");
+		localStorage.setItem(id,name+"|"+age);
+		var ids = localStorage.getItem("storedObjIds");
+		if(ids!=null)
+		{
+         ids+=","+id;
+		}
+		else
+		{
+		  ids = id;
+		}
+		localStorage.setItem("storedObjIds",ids);
+		
+		addCurrentIdPoint();
+	}
+	
+	function addDataToLocalStorage()
+	{
+	    setObjStrTolocalStorage();
+		addLocalStorageToTabel();
+		$("#addDataToForm").dialog("close")
+	 }
+	 
+	 function addCurrentIdPoint()
+	 {
+	   var currentId = localStorage.getItem("currentId");	
+	   var currentIdInt = parseInt(currentId) + 1;
+	   localStorage.setItem("currentId",currentIdInt);
+	 }
+	 
+	function addDataReady()
+	{
+	  var id   = localStorage.getItem("currentId");
+	  $("#currentIdLabel").html("Current ID: "+id);
+	  var target = $("#addDataToForm")
+	  setDisplayArea(target)
+	  $(target).dialog("open");
+	}
+	
+	function setDisplayArea(target, recall) {
+	$(target).dialog({
+		autoOpen : false,
+		width : "auto",
+		height : "auto",
+		modal : true,
+		position : "center",
+		beforeClose : recall
+	});
+}
+
+	&lt;/script&gt; 
+
+&lt;/head&gt; 
+&lt;body&gt; 
+   &lt;a href="javascript:void(0)" onclick="addDataReady()"&gt;You can add Data Here!&lt;/a&gt;
+   &lt;div id="addDataToForm" style="display:none;"&gt;
+   &lt;span id="currentIdLabel"&gt;ID:&lt;/span&gt;&amp;nbsp;&lt;span&gt;Name:&lt;input type="text" id="nameValue"&gt;&lt;/span&gt;&amp;nbsp;&lt;span&gt;Age: &lt;input type="text" id="ageValue"&gt;&lt;/span&gt;&amp;nbsp;&lt;span&gt;&lt;a href="javascript:void(0)" onclick="addDataToLocalStorage();"&gt;ADD&lt;/a&gt;&lt;/span&gt;
+   &lt;/div&gt;
+   &lt;table id="localDataList" style="border:1px solid; width:100%;"&gt;
+     &lt;thead&gt;
+     &lt;tr id="head"&gt;
+	   &lt;td width="20%"&gt;ID&lt;/td&gt;&lt;td width="20%"&gt;Name&lt;/td&gt;&lt;td width="20%"&gt;Age&lt;/td&gt;&lt;td width="40%"&gt;Operation&lt;/td&gt;
+	 &lt;/tr&gt;
+	 &lt;/thead&gt;
+	 &lt;tbody&gt;
+	 &lt;tr&gt;
+	   &lt;td&gt;ID&lt;/td&gt;&lt;td&gt;Name&lt;/td&gt;&lt;td&gt;Age&lt;/td&gt;&lt;td&gt;Operation&lt;/td&gt;
+	 &lt;/tr&gt;
+	 &lt;/tbody&gt;
+   &lt;/table&gt;
+&lt;/body&gt; 
+ 
+ 
+&lt;/html&gt; 
+</t>
+<t tx="2014pythonE.20140313212213.1902">http://ginstrom.com/scribbles/2010/03/07/simple-ajax-with-cherrypy-and-jquery/
+
+minijQyery Lab: http://www.darkthread.net/MiniJQueryLab/
+</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 

@@ -5,10 +5,9 @@ textarea {
 }
 
 #container {
-width:90%;
-height: 66%;
+width:100%;
 position:relative;
-margin: auto;
+margin: 10px;
 }
 
 #left-div {

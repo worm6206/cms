@@ -110,6 +110,11 @@ def clear_src(ev):
     editor.setValue('')
     if sys.has_local_storage:
         storage["py_src"]=''
+        
+def clear_canvas(ev):
+    canvas = doc["plotarea"]
+    ctx = canvas.getContext("2d")
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
 def clear_console(ev):
     doc["console"].value=''

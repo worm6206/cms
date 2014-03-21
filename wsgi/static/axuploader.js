@@ -39,8 +39,7 @@
 				if(options)	$.extend(settings,options);
 				var allowExt=settings.allowExt.join('|').toLowerCase();
 
-			
-				/*================================================================================*\
+/*================================================================================*\
 				 Test if support pure ajax upload
 				\*================================================================================*/
 				var _browse = document.createElement('input');
