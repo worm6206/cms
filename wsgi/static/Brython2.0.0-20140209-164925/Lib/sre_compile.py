@@ -485,11 +485,9 @@ def _code(p, flags):
 
     # compile info block
     _compile_info(code, p, flags)
-    #print('sre_compile.py:481:code', code)
 
     # compile the pattern
     _compile(code, p.data, flags)
-    #print('sre_compile.py:485:code', code)
 
     code.append(OPCODES[SUCCESS])
 

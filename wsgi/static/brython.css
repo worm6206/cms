@@ -26,7 +26,9 @@ a.banner:hover,a.banner:active
 }
 #banner{
     width:100%;
-    padding-bottom:15px;
+    padding-bottom:0px;
+    padding-left: 10px;
+    padding-top: 10px;
 }
 #console{
     color:#FFF;
@@ -38,6 +40,9 @@ a.banner:hover,a.banner:active
     padding-left:5%;
     padding-right:15%;
     
+}
+.alnleft { 
+    text-align: left; 
 }
 a.glink{
     text-decoration:underline;

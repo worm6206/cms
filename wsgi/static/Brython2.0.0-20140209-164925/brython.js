@@ -7,7 +7,7 @@
 var __BRYTHON__={}
 __BRYTHON__.builtins={
 __repr__:function(){return "<module 'builtins>'"},
-__str__:function(){return "<module 'builtins'>"}, 
+__str__:function(){return "<module 'builtins'>"}
 }
 __BRYTHON__.__getattr__=function(attr){return this[attr]}
 __BRYTHON__.__setattr__=function(attr,value){

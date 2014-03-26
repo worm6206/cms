@@ -17,13 +17,15 @@ from _abcoll import MutableMapping
 #__all__ += _abcoll.__all__
 
 from _collections import deque, defaultdict, namedtuple
+#fixme, brython.  This causes a ReferenceError: itemgetter is not defined
 from operator import itemgetter as _itemgetter
 from keyword import iskeyword as _iskeyword
 import sys as _sys
 import heapq as _heapq
 #fixme brython
-from weakref import proxy as _proxy
+#from weakref import proxy as _proxy
 from itertools import repeat as _repeat, chain as _chain, starmap as _starmap
+#fixme brython 
 from reprlib import recursive_repr as _recursive_repr
 
 class Set(set):
@@ -32,8 +34,8 @@ class Set(set):
 class Sequence(list):
     pass
 
-#def _proxy(obj):
-#    return obj
+def _proxy(obj):
+    return obj
 
 ################################################################################
 ### OrderedDict

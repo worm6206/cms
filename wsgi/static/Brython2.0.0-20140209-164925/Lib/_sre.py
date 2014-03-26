@@ -70,12 +70,13 @@ class SRE_Pattern:
         None if the string does not match the pattern."""
         #print(string)
         state = _State(string, pos, endpos, self.flags)
-        #print('_sre.py:match:73', self._code)
+        print('_sre.py:match:73', self._code)
+        #print(state.match(self._code))
         if state.match(self._code):
-            #print("_sre.py:70: match")
+            print("_sre.py:76: match")
             return SRE_Match(self, state)
         #else:
-        #print("_sre.py:75: match")
+        print("_sre.py:79:no match")
         return None
 
     def search(self, string, pos=0, endpos=sys.maxsize):
@@ -114,7 +115,8 @@ class SRE_Pattern:
         filter = template
         if not callable(template) and "\\" in template:
             # handle non-literal strings ; hand it over to the template compiler
-            import sre
+            #import sre  #sre was renamed to re
+            import re as sre
             filter = sre._subx(self, template)
         state = _State(string, 0, sys.maxsize, self.flags)
         sublist = []
@@ -188,16 +190,16 @@ class SRE_Pattern:
 
     def finditer(self, string, pos=0, endpos=sys.maxsize):
         """Return a list of all non-overlapping matches of pattern in string."""
-        #scanner = self.scanner(string, pos, endpos)
-        _list=[]
+        scanner = self.scanner(string, pos, endpos)
+        ##_list=[]
         #_m=self.scanner(string, pos, endpos)
-        _re=SRE_Scanner(self, string, pos, endpos)
-        _m=_re.search()
-        while _m:
-           _list.append(_m)
-           _m=_re.search()
-        return _list
-        #return iter(scanner.search, None)
+        #_re=SRE_Scanner(self, string, pos, endpos)
+        #_m=_re.search()
+        #while _m:
+        #   _list.append(_m)
+        #   _m=_re.search()
+        #return _list
+        return iter(scanner.search, None)
 
     def scanner(self, string, start=0, end=sys.maxsize):
         return SRE_Scanner(self, string, start, end)
@@ -276,7 +278,7 @@ class SRE_Match:
             if group >= 0 and group <= self.re.groups:
                 return group
         else:
-            if self.re.groupindex.has_key(group):
+            if group in self.re.groupindex:
                 return self.re.groupindex[group]
         raise IndexError("no such group")
 
@@ -397,7 +399,7 @@ class _State:
             #except:
             #  pass
             has_matched = dispatcher.match(context)
-            #print('_sre.py:386', has_matched)
+            print('_sre.py:402', has_matched)
             if has_matched is not None: # don't pop if context isn't done
                 self.context_stack.pop()
         #print("end:_State.match:", has_matched)
@@ -585,7 +587,6 @@ class _Dispatcher:
 
     def dispatch(self, code, context):
         method = self.DISPATCH_TABLE.get(code, self.__class__.unknown)
-        #print("dispatcher:580:", method, code)
         return method(self, context)
 
     def unknown(self, code, ctx):
@@ -619,13 +620,15 @@ class _OpcodeDispatcher(_Dispatcher):
         while context.remaining_codes() > 0 and context.has_matched is None:
             #print("_sre.py:601:remaining_codes:", context.remaining_codes())
             opcode = context.peek_code()
-            #print('_sre.py:match:598', opcode)
+            #print('_sre.py:match:622', opcode)
+            #print(context.has_matched)
             if not self.dispatch(opcode, context):
                 return None
-            #print('_sre.py:match:611', opcode)
+            #print(context.has_matched)
+            #print('_sre.py:match:627', opcode)
         if context.has_matched is None:
             context.has_matched = False
-        #print('_sre.py:match:601', context.has_matched)
+        #print('_sre.py:match:630', context.has_matched)
         return context.has_matched
 
     def dispatch(self, opcode, context):
@@ -641,7 +644,7 @@ class _OpcodeDispatcher(_Dispatcher):
         else:
             method = self.DISPATCH_TABLE.get(opcode, _OpcodeDispatcher.unknown)
             #print('_sre.py:dispatch:615', method)
-            #print('begin:', method, id(context), id(context.state))
+            print('begin:', method, id(context), id(context.state))
             has_finished = method(self, context)
             #print('end:', method, id(context), id(context.state))
             #print('_sre.py:dispatch:617:has_finished', has_finished)
@@ -910,6 +913,7 @@ class _OpcodeDispatcher(_Dispatcher):
         mincount = ctx.peek_code(2)
         maxcount = ctx.peek_code(3)
         #self._log(ctx, "MIN_REPEAT_ONE", mincount, maxcount)
+        #print(ctx, "MIN_REPEAT_ONE", mincount, maxcount)
 
         if ctx.remaining_chars() < mincount:
             ctx.has_matched = False
@@ -960,7 +964,7 @@ class _OpcodeDispatcher(_Dispatcher):
         #   print("951:ctx.state.repeat is None")
         #   #ctx.state.repeat=_RepeatContext(ctx)
 
-        #print("repeat", ctx.state.repeat, mincount, maxcount)
+        print("repeat", ctx.state.repeat)
         repeat = _RepeatContext(ctx)
         ctx.state.repeat = repeat
         ctx.state.string_position = ctx.string_position
