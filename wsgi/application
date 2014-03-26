@@ -1659,10 +1659,7 @@ if (!newfile.Status) {
     #@+node:2014pythonE.20140326221636.2040: *3* brython
     @cherrypy.expose
     def brython(self, item_per_page=5, page=1, keyword=None, *args, **kwargs):
-        if not self.isAdmin():
-            raise cherrypy.HTTPRedirect("/login")
-        else:
-            part1 =  '''
+        part1 =  '''
     <!DOCTYPE html> 
     <html>
     <head>
@@ -1778,7 +1775,11 @@ if (!newfile.Status) {
     # bindings
     doc['run_js'].bind('click',run_js)
     doc['set_debug'].bind('change',set_debug)
+    '''
+        adm1 = '''
     doc['set_overwrite'].bind('change',set_overwrite)
+    '''
+        part2 = '''
     # next functions are defined in editor.py
     doc['show_js'].bind('click',show_js)
     doc['run'].bind('click',run)
@@ -1792,8 +1793,12 @@ if (!newfile.Status) {
     # clear_canvas and clear_src
     doc['clear_canvas'].bind('click',clear_canvas)
     doc['clear_src'].bind('click',clear_src)
-    # testing
+    # only admin can save program to server
+    '''
+        adm2 = '''
     doc['save_program'].bind('click',lambda ev:post('/save_program'))
+    '''
+        part3 = '''
     </script>
 
     <script>
@@ -1814,7 +1819,7 @@ if (!newfile.Status) {
     <td style="width:80px"></td>
     <td class="alnleft">
     '''
-            part2 = '''
+        part4 = '''
     </td>
     <td class="alnleft">
                 <button id="reset_the_src">reset the_src</button>
@@ -1822,9 +1827,13 @@ if (!newfile.Status) {
                 <button id="clear_console">clear console</button>
                 <button id="clear_canvas">clear canvas</button>
                 <br />filename: <input id="filename">
+    '''
+        adm3 = '''
                 <button id="save_program">save program</button>
                 overwrite<input type="checkbox" id="set_overwrite">
-                    <div id="result">(empty)</div>
+    '''
+        part5 = '''
+                <div id="result">(empty)</div>
                 <button id="get_radio">load selected program</button>
                 <button onClick="window.location.reload()">reload page</button>
                 <button id="get_prog">get prog file</button>
@@ -1902,7 +1911,10 @@ if (!newfile.Status) {
     </body>
     </html>
     '''
-        return part1+self.load_list(item_per_page, page)+part2
+        if not self.isAdmin():
+            return part1+part2+part3+self.load_list(item_per_page, page)+part4+part5
+        else:
+            return part1+adm1+part2+adm2+part3+self.load_list(item_per_page, page)+part4+adm3+part5
     #@-others
 #@+node:cmsxh.20131226100304.3709: ** class Download
 class Download:
