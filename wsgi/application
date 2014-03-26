@@ -1659,7 +1659,10 @@ if (!newfile.Status) {
     #@+node:2014pythonE.20140326221636.2040: *3* brython
     @cherrypy.expose
     def brython(self, item_per_page=5, page=1, keyword=None, *args, **kwargs):
-        part1 =  '''
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            part1 =  '''
     <!DOCTYPE html> 
     <html>
     <head>
@@ -1811,7 +1814,7 @@ if (!newfile.Status) {
     <td style="width:80px"></td>
     <td class="alnleft">
     '''
-        part2 = '''
+            part2 = '''
     </td>
     <td class="alnleft">
                 <button id="reset_the_src">reset the_src</button>
@@ -1896,8 +1899,6 @@ if (!newfile.Status) {
     <div style="float:left;margin-top:50px;">
     <canvas id="plotarea" width="800" height="600"></canvas>
     </div>
-
-
     </body>
     </html>
     '''
