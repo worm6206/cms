@@ -27,9 +27,10 @@ float:right;
 }
 
 #editor {
-float:none;
+float:auto;
 width:50%;
 height:60%;
+resize:both;
 }
 
 #controls {

@@ -1407,7 +1407,7 @@ if (!newfile.Status) {
         directory+"</nav><section><h1>Site Map</h1>"+sitemap+"</section></div></body></html>"
     #@+node:2014pythonE.20140326221636.2040: *3* brython
     @cherrypy.expose
-    def brython(self, item_per_page=5, page=1, keyword=None, *args, **kwargs):
+    def brython(self, item_per_page=5, page=1, keyword=None, filename=None, *args, **kwargs):
         part1 =  '''
     <!DOCTYPE html> 
     <html>
@@ -1532,7 +1532,7 @@ if (!newfile.Status) {
         editor.scrollToRow(0)
         editor.gotoLine(0)
         reset_theme()
-
+        
     def get_radio(ev):
         from javascript import JSObject
         filename = JSObject(getradio)("filename")
@@ -1576,6 +1576,22 @@ if (!newfile.Status) {
     # add delete_program 5/7, delete_program button bind to execute delete_program on server.
     doc['delete_program'].bind('click',lambda ev:post('/delete_program'))
     '''
+        # if load program through url
+        if filename != None:
+            load_program = '''
+    _name = '/brython_programs/'''+filename+''''
+    try:
+        editor.setValue(open(_name, encoding="utf-8").read())
+        doc["result"].html = "'''+filename+''' loaded!"
+    except:
+        doc["result"].html = "can not get '''+filename+'''!"
+    editor.scrollToRow(0)
+    editor.gotoLine(0)
+    reset_theme()
+    '''
+        else:
+            load_program =""
+
         part3 = '''
     </script>
 
@@ -1674,9 +1690,9 @@ if (!newfile.Status) {
     </html>
     '''
         if not self.isAdmin():
-            return part1+part2+part3+self.load_list(item_per_page, page)+part4+part5
+            return part1+part2+load_program+part3+self.load_list(item_per_page, page)+part4+part5
         else:
-            return part1+adm1+part2+adm2+part3+self.load_list(item_per_page, page)+part4+adm3+part5
+            return part1+adm1+part2+adm2+load_program+part3+self.load_list(item_per_page, page)+part4+adm3+part5
     #@-others
 #@+node:cmsxh.20131226100304.3709: ** class Download
 class Download:

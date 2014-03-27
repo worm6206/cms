@@ -3,6 +3,7 @@
 import random
  
 標準答案 = random.randint(1, 100)
+print("答案為", 標準答案)
 你猜的數字 = int(input("請輸入您所猜的整數:"))
 猜測次數 = 1
 while 標準答案 != 你猜的數字:
