@@ -1689,6 +1689,29 @@ if (!newfile.Status) {
             return part1+part2+load_program+part3+self.load_list(item_per_page, page)+part4+part5
         else:
             return part1+adm1+part2+adm2+load_program+part3+self.load_list(item_per_page, page)+part4+adm3+part5
+    #@+node:2014pythonE.20140329072748.2053: *3* ucrobot
+    @cherrypy.expose
+    def ucrobot(self):
+        return '''
+    <html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+            </head>
+    	<body style="overflow:auto; margin:0; padding:0;position:relative">
+    		<div id="container" onclick="this.focus();"></div>
+    		<div id="grading"></div>
+    <script type="text/javascript" src="/static/threejs/Detector.js"></script>
+    		<script type="text/javascript">
+    		if ( ! Detector.webgl ) { 
+    				Detector.addGetWebGLMessage();
+    		}
+    		</script>
+    		<script type="text/javascript" src="/static/threejs/three.min.js"></script>
+              <script type="text/javascript" src="/static/threejs/Coordinates.js"></script>
+    		<script type="text/javascript" src="/static/threejs/OrbitAndPanControls.js"></script>
+    		<script type="text/javascript" src="/static/threejs/dat.gui.min.js"></script>
+    		<script type="text/javascript" src="/static/threejs/demo.js"></script>
+
+    </body></html>
+    '''
     #@-others
 #@+node:cmsxh.20131226100304.3709: ** class Download
 class Download:
