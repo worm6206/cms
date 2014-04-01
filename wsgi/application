@@ -1515,7 +1515,8 @@ if (!newfile.Status) {
     def err_msg():
         doc["result"].html = "server didn't reply after %s seconds" %timeout
 
-    timeout = 4
+    # 4 seconds is not long enough for 700 lines program save
+    timeout = 30
 
     def go(url):
         req = ajax.ajax()
