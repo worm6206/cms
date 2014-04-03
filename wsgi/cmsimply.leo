@@ -460,7 +460,7 @@ QTreeWidget {
     /*font-family: DejaVu Sans Mono;*/
     font-family:YaHei Mono;
     /* 標題字型大小設定 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal, italic,oblique */
  }
@@ -473,7 +473,7 @@ QTreeWidget QLineEdit {
     /*font-family: DejaVu Sans Mono;*/    
     font-family:YaHei Mono;
     /* 沒有特別對應字型大小 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal, italic,oblique */
 }
@@ -486,7 +486,7 @@ QTextEdit {
     /* font-family: Courier New; */
     font-family:YaHei Mono;
     /* log font 大小 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal, italic,oblique */
 }
@@ -500,7 +500,7 @@ QTextEdit#richTextEdit {
     /* font-family: Courier New; */
     font-family:YaHei Mono;
     /* 內文字型大小 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal,italic,oblique */
 }
@@ -508,7 +508,7 @@ QTextEdit#richTextEdit {
 QLabel {
     font-family:YaHei Mono;
     /* 下方的 Minibuffer 標題字型大小 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal,italic,oblique */
 }
@@ -518,7 +518,7 @@ QLineEdit#editorLabel {
     background-color: #ffffec;
     font-family:YaHei Mono;
     /* 沒有直接對應字型大小 */
-    font-size: 20px;
+    font-size: 22px;
     font-weight: normal; /* normal,bold,100,..,900 */
     font-style: normal; /* normal,italic,oblique */
     border: 2px;
@@ -568,7 +568,17 @@ You should have received a copy of the GNU General Public License
 along with CMSimpiy. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
 <t tx="cmsxh.20140108172857.2428">version on public-cmsimply.rhcloud.com
 </t>
-<t tx="cmsxh.20140212132226.1610">in SSL mode no arrow for menu - modified to use local jquery.js file</t>
+<t tx="cmsxh.20140212132226.1610">1. in SSL mode no arrow for menu - modified to use local jquery.js file
+
+2. Brython editor can not save a 700-line program - it is the mailformated URI problem not the timeout problem.
+
+3. upload file will write on top of the duplicated file, in stead of create a new file. (a bug need to fix)
+
+4. duplicated page title problem need to deal with.
+
+
+
+</t>
 <t tx="cmsxh.20140212132226.1611">add images directory file list
 
 when administrator press list image file button, system will check if thumb images are exist or not, the list will show thum image file and press to view original image file.

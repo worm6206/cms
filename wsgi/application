@@ -866,10 +866,11 @@ remotePath:function(){
     @cherrypy.expose
     def fileaxupload(self, *args, **kwargs):
         # need to consider if the uploaded filename already existed.
+        # right now all existed files will be replaced with the new files
         if self.isAdmin():
             filename = kwargs["ax-file-name"]
             flag = kwargs["start"]
-            if flag == 0:
+            if flag == "0":
                 file = open(download_root_dir+"downloads/"+filename, "wb")
             else:
                 file = open(download_root_dir+"downloads/"+filename, "ab")
@@ -1515,8 +1516,7 @@ if (!newfile.Status) {
     def err_msg():
         doc["result"].html = "server didn't reply after %s seconds" %timeout
 
-    # 4 seconds is not long enough for 700 lines program save
-    timeout = 30
+    timeout = 4
 
     def go(url):
         req = ajax.ajax()
