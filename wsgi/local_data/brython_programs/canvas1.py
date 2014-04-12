@@ -1,7 +1,7 @@
 #coding: utf-8
 from math import *
 import time
-import random
+#import random
 # 準備繪圖畫布
 canvas = doc["plotarea"]
 ctx = canvas.getContext("2d")
