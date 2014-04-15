@@ -1,0 +1,32 @@
+socialcalc:version:1.0
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary=SocialCalcSpreadsheetControlSave
+--SocialCalcSpreadsheetControlSave
+Content-type: text/plain; charset=UTF-8
+
+# SocialCalc Spreadsheet Control Save
+version:1.0
+part:sheet
+part:edit
+part:audit
+--SocialCalcSpreadsheetControlSave
+Content-type: text/plain; charset=UTF-8
+
+version:1.5
+cell:A1:vt:th:<img src="http\c//dodo.inm.ras.ru/research/_media/grids/gear-cad.png" width="150"></img>
+cell:B1:t:正齒輪
+sheet:c:2:r:1
+--SocialCalcSpreadsheetControlSave
+Content-type: text/plain; charset=UTF-8
+
+version:1.0
+rowpane:0:20:31
+colpane:0:1:12
+ecell:C1
+sort::-1:up::::
+--SocialCalcSpreadsheetControlSave
+Content-type: text/plain; charset=UTF-8
+
+set A1 text th <img src="http\c//dodo.inm.ras.ru/research/_media/grids/gear-cad.png" width="150"></img>
+set B1 text t 正齒輪
+--SocialCalcSpreadsheetControlSave--
