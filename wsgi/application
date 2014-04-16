@@ -533,7 +533,7 @@ def downloadselect_access_list(files, starti, endi):
         files[index]+'''</a> ('''+str(sizeof_fmt(fileSize))+''')<br />'''
     return outstring
 #@+node:2014pythonE.20140321113009.1825: ** loadlist_access_list
-def loadlist_access_list(files, starti, endi):
+def loadlist_access_list(files, starti, endi, filedir):
     # different extension files, associated links were provided
     # popup window to view images, video or STL files, other files can be downloaded directly
     # files are all the data to list, from starti to endi
@@ -542,7 +542,7 @@ def loadlist_access_list(files, starti, endi):
     for index in range(int(starti)-1, int(endi)):
         fileName, fileExtension = os.path.splitext(files[index])
         fileExtension = fileExtension.lower()
-        fileSize = sizeof_fmt(os.path.getsize(data_dir+"brython_programs/"+files[index]))
+        fileSize = sizeof_fmt(os.path.getsize(data_dir+filedir+"_programs/"+files[index]))
         # images files
         if fileExtension == ".png" or fileExtension == ".jpg" or fileExtension == ".gif":
             outstring += '<input type="checkbox" name="filename" value="'+files[index]+'"><a href="javascript:;" onClick="window.open(\'/downloads/'+ \
@@ -560,8 +560,7 @@ def loadlist_access_list(files, starti, endi):
             outstring += '<input type="radio" name="filename" value="'+files[index]+'">'+files[index]+' ('+str(fileSize)+')<br />'
         # direct download files
         else:
-            outstring += "<input type='checkbox' name='filename' value='"+files[index]+"'><a href='/download/?filepath="+download_root_dir.replace('\\', '/')+ \
-            "downloads/"+files[index]+"'>"+files[index]+"</a> ("+str(fileSize)+")<br />"
+            outstring += "<input type='checkbox' name='filename' value='"+files[index]+"'><a href='/"+filedir+"_programs/"+files[index]+"'>"+files[index]+"</a> ("+str(fileSize)+")<br />"
     return outstring
 #@+node:cmsxh.20131226100304.3680: ** imageselect_access_list
 def imageselect_access_list(files, starti, endi):
@@ -824,12 +823,20 @@ class CMSimply(object):
 
     #@+node:2014pythonE.20140415145042.1961: *3* save_calcprogram
     @cherrypy.expose
-    def save_calcprogram(self, filename=None, sheet_content=None):
-        with open(data_dir+"/calc_programs/"+filename, "wt", encoding="utf-8") as out_file:
-            data = sheet_content.replace("\r\n", "\n")
-            out_file.write(data)
+    def save_calcprogram(self, filename=None, sheet_content=None, overwrite=0, delete1=0, delete2=0):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:
+            if overwrite == "1" or not os.path.isfile(data_dir+"/calc_programs/"+filename):
+                # open file in wt will use Windows \r\n for new line
+                # use replace method to remove extra lines for Windows environment
+                with open(data_dir+"/calc_programs/"+filename, "wt", encoding="utf-8") as out_file:
+                    data = sheet_content.replace("\r\n", "\n")
+                    out_file.write(data)
+                return str(filename)+" saved!<br />"
+            else:  
+                return str(filename)+" exists! editor content not saved yet!<br />"
 
-        return str(filename)+" saved!<br />"
      
 
 
@@ -846,6 +853,20 @@ class CMSimply(object):
                 os.remove(data_dir+"/brython_programs/"+filename)
                 return str(filename)+" deleted!<br />"
             elif not os.path.isfile(data_dir+"/brython_programs/"+filename):
+                return str(filename)+" does not exist!<br />"
+            else:
+                return "can not delete "+str(filename)+"!"
+                
+    #@+node:2014pythonE.20140416133807.1743: *3* delete_calcprogram
+    @cherrypy.expose
+    def delete_calcprogram(self, filename=None, sheet_content=None, overwrite=0, delete1=0, delete2=0):
+        if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
+        else:       
+            if delete1 == "1" and delete2 == "1" and os.path.isfile(data_dir+"/calc_programs/"+filename):
+                os.remove(data_dir+"/calc_programs/"+filename)
+                return str(filename)+" deleted!<br />"
+            elif not os.path.isfile(data_dir+"/calc_programs/"+filename):
                 return str(filename)+" does not exist!<br />"
             else:
                 return "can not delete "+str(filename)+"!"
@@ -1058,14 +1079,14 @@ remotePath:function(){
             directory+"</nav><section><h1>Download List</h1>"+outstring+"<br/><br /></body></html>"
     #@+node:2014pythonE.20140321113009.1824: *3* load_list
     @cherrypy.expose
-    def load_list(self, item_per_page=5, page=1, keyword=None, *args, **kwargs):
+    def load_list(self, item_per_page=5, page=1, filedir=None, keyword=None, *args, **kwargs):
         '''
         if not self.isAdmin():
             raise cherrypy.HTTPRedirect("/login")
         '''
         # cherrypy.session['admin'] = 1
         # cherrypy.session.get('admin')
-        files = os.listdir(data_dir+"brython_programs/")
+        files = os.listdir(data_dir+filedir+"_programs/")
         total_rows = len(files)
         totalpage = math.ceil(total_rows/int(item_per_page))
         starti = int(item_per_page) * (int(page) - 1) + 1
@@ -1074,6 +1095,7 @@ remotePath:function(){
         outstring = "<form name='filelist' method='post' action=''>"
         notlast = False
         if total_rows > 0:
+            # turn off the page selector on top
             '''
             outstring += "<br />"
             if (int(page) * int(item_per_page)) < total_rows:
@@ -1108,18 +1130,18 @@ remotePath:function(){
             '''
             if (int(page) * int(item_per_page)) < total_rows:
                 notlast = True
-                outstring += loadlist_access_list(files, starti, endi)+"<br />"
+                outstring += loadlist_access_list(files, starti, endi, filedir)+"<br />"
             else:
                 outstring += "<br /><br />"
-                outstring += loadlist_access_list(files, starti, total_rows)+"<br />"
+                outstring += loadlist_access_list(files, starti, total_rows, filedir)+"<br />"
             
             if int(page) > 1:
                 outstring += "<a href='"
-                outstring += "/brython?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>{{</a> "
                 page_num = int(page) - 1
                 outstring += "<a href='"
-                outstring += "/brython?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>Previous</a> "
             span = 10
             for index in range(int(page)-span, int(page)+span):
@@ -1130,15 +1152,15 @@ remotePath:function(){
                         outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
                     else:
                         outstring += "<a href='"
-                        outstring += "/brython?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                        outstring += "/"+filedir+"?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                         outstring += "'>"+str(page_now)+"</a> "
             if notlast == True:
                 nextpage = int(page) + 1
                 outstring += " <a href='"
-                outstring += "/brython?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>Next</a>"
                 outstring += " <a href='"
-                outstring += "/brython?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>}}</a>"
         else:
             outstring += "no data!"
@@ -1716,10 +1738,10 @@ if (!newfile.Status) {
     </html>
     '''
         if not self.isAdmin():
-            return part1+part2+load_program+part3+self.load_list(item_per_page, page)+part4+part5
+            return part1+part2+load_program+part3+self.load_list(item_per_page, page, "brython")+part4+part5
         else:
-            return part1+adm1+part2+adm2+load_program+part3+self.load_list(item_per_page, page)+part4+adm3+part5
-    #@+node:2014pythonE.20140415145042.1959: *3* ethercalc
+            return part1+adm1+part2+adm2+load_program+part3+self.load_list(item_per_page, page, "brython")+part4+adm3+part5
+    #@+node:2014pythonE.20140416091642.1863: *3* ethercalc
     @cherrypy.expose
     def ethercalc(self, filename=None, *args, **kwargs):
         part1 = '''
@@ -1911,6 +1933,236 @@ if (!newfile.Status) {
     '''
         return part1+load_program+part2
 
+    #@+node:2014pythonE.20140415145042.1959: *3* calc
+    @cherrypy.expose
+    def calc(self, item_per_page=5, page=1, keyword=None, filename=None, *args, **kwargs):
+        part1 = '''
+    <!DOCTYPE html> 
+    <html>
+    <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <script type="text/javascript" src="/static/Brython2.1.0rc2-20140412-152157/brython.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalcconstants.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalc-3.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalctableeditor.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/formatnumber2.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/formula1.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalcpopup.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalcspreadsheetcontrol.js"></script>
+    <script type="text/javascript" src="/static/socialcalc/socialcalcviewer.js"></script>
+    <script type="text/javascript">
+    function getradio(tagname){
+    var radios = document.getElementsByName(tagname);
+    for (var i = 0, length = radios.length; i < length; i++) {
+        if (radios[i].checked) {
+            // do whatever you want with the checked radio
+            return radios[i].value;
+            // only one radio can be logically checked, don't check the rest
+            break;
+          }
+       }
+    }
+    </script>
+    </head>
+    <body onload="brython({debug:1, cache:'version'})">
+    <div id="tableeditor" style="margin:8px 0px 10px 0px;">editor goes here</div>
+    <div id="msg" onclick="this.innerHTML='&nbsp;';"></div>
+
+    <script id="ascript" type="text/python">
+    from browser import ajax, doc, alert, websocket
+    from javascript import JSConstructor
+
+    spreadsheet =  JSConstructor(SocialCalc.SpreadsheetControl)()
+    savestr = ""
+    spreadsheet.InitializeSpreadsheetControl("tableeditor")
+    spreadsheet.ExecuteCommand('redisplay', '')
+
+    overwrite = 0
+    # add delete_program 1/7, seven steps to complete the ajax task, the last step is to add delete_program function on server
+    # delete1 and delete2 parameters are also added into save_program function.
+    delete1 = 0
+    delete2 = 0
+
+    def set_overwrite(ev):
+        global overwrite
+        if ev.target.checked:
+            overwrite = 1
+        else:
+            overwrite = 0
+
+    # add delete_program 2/7, client side add set_delete1 and set_delete2 functions.
+    def set_delete1(ev):
+        global delete1
+        if ev.target.checked:
+            delete1 = 1
+        else:
+            delete1 = 0
+
+    def set_delete2(ev):
+        global delete2
+        if ev.target.checked:
+            delete2 = 1
+        else:
+            delete2 = 0
+
+    def on_complete(req):
+        print(req.readyState)
+        print('status',req.status)
+        if req.status==200 or req.status==0:
+            doc["result"].html = req.text
+        else:
+            doc["result"].html = "error "+req.text
+
+    def err_msg():
+        doc["result"].html = "server didn't reply after %s seconds" %timeout
+
+    timeout = 4
+
+    def go(url):
+        req = ajax.ajax()
+        req.bind('complete',on_complete)
+        req.set_timeout(timeout,err_msg)
+        req.open('GET',url,True)
+        req.send()
+
+    def post(url):
+        global spreadsheet
+        sheet_content = spreadsheet.CreateSpreadsheetSave()
+        req = ajax.ajax()
+        req.bind('complete',on_complete)
+        req.set_timeout(timeout,err_msg)
+        req.open('POST',url,True)
+        req.set_header('content-type','application/x-www-form-urlencoded')
+        # add delete_program 3/7, two parameters added, this will also affect save_program function on server.
+        req.send({'filename':doc["filename"].value, 'sheet_content':sheet_content, 'overwrite':overwrite, 'delete1':delete1, 'delete2':delete2})
+
+    def show_save(ev):
+        global spreadsheet
+        sheet_content = spreadsheet.CreateSpreadsheetSave()
+        print(sheet_content)
+        
+    def doreload(ev):
+        global spreadsheet
+        sheet_content = spreadsheet.CreateSpreadsheetSave()
+        parts = spreadsheet.DecodeSpreadsheetSave(sheet_content)
+        if (parts):
+            if (parts.sheet):
+                spreadsheet.sheet.ResetSheet()
+                spreadsheet.ParseSheetSave(sheet_content[parts.sheet.start:parts.sheet.end])
+            if (parts.edit):
+                spreadsheet.editor.LoadEditorSettings(sheet_content[parts.edit.start:parts.edit.end])
+
+        #if (spreadsheet.editor.context.sheetobj.attribs.recalc=="off"):
+            #spreadsheet.ExecuteCommand('redisplay', '')
+        #else:
+        spreadsheet.ExecuteCommand('recalc', '')
+        alert("reload done")
+
+    # get program from server
+    def get_prog(ev):
+        # ajax can only read data from server
+        _name = '/calc_programs/'+doc["filename"].value
+        try:
+            sheet_content = open(_name, encoding="utf-8").read()
+            parts = spreadsheet.DecodeSpreadsheetSave(sheet_content)
+            if (parts):
+                if (parts.sheet):
+                    spreadsheet.sheet.ResetSheet()
+                    spreadsheet.ParseSheetSave(sheet_content[parts.sheet.start:parts.sheet.end])
+                if (parts.edit):
+                    spreadsheet.editor.LoadEditorSettings(sheet_content[parts.edit.start:parts.edit.end])
+            spreadsheet.ExecuteCommand('recalc', '')
+            doc["result"].html = doc["filename"].value+" loaded!"
+        except:
+            doc["result"].html = "can not get "+doc["filename"].value+"!"
+
+    def get_radio(ev):
+        from javascript import JSObject
+        filename = JSObject(getradio)("filename")
+        # ajax can only read data from server
+        doc["filename"].value = filename
+        _name = '/calc_programs/'+filename
+        try:
+            sheet_content = open(_name, encoding="utf-8").read()
+            parts = spreadsheet.DecodeSpreadsheetSave(sheet_content)
+            if (parts):
+                if (parts.sheet):
+                    spreadsheet.sheet.ResetSheet()
+                    spreadsheet.ParseSheetSave(sheet_content[parts.sheet.start:parts.sheet.end])
+                if (parts.edit):
+                    spreadsheet.editor.LoadEditorSettings(sheet_content[parts.edit.start:parts.edit.end])
+            spreadsheet.ExecuteCommand('recalc', '')
+            doc["result"].html = doc["filename"].value+" loaded!"
+        except:
+            doc["result"].html = "can not get "+doc["filename"].value+"!"
+
+    # bindings
+    doc['get_prog'].bind('click', get_prog)
+    doc['get_radio'].bind('click', get_radio)
+    doc['doreload'].bind('click', doreload)
+    '''
+        adm1 = '''
+    doc['save_program'].bind('click',lambda ev:post('/save_calcprogram'))
+    # add delete_program 5/7, delete_program button bind to execute delete_program on server.
+    doc['delete_program'].bind('click',lambda ev:post('/delete_calcprogram'))
+    doc['show_save'].bind('click', show_save)
+    doc['set_overwrite'].bind('change',set_overwrite)
+    # add delete_program 4/7, two associated binds added
+    doc['set_delete1'].bind('change',set_delete1)
+    doc['set_delete2'].bind('change',set_delete2)
+    '''
+        # if load program through url
+        if filename != None:
+            load_program = '''
+    # ajax can only read data from server
+    _name = '/calc_programs/'''+filename+''''
+    try:
+        sheet_content = open(_name, encoding="utf-8").read()
+        parts = spreadsheet.DecodeSpreadsheetSave(sheet_content)
+        if (parts):
+            if (parts.sheet):
+                spreadsheet.sheet.ResetSheet()
+                spreadsheet.ParseSheetSave(sheet_content[parts.sheet.start:parts.sheet.end])
+            if (parts.edit):
+                spreadsheet.editor.LoadEditorSettings(sheet_content[parts.edit.start:parts.edit.end])
+        spreadsheet.ExecuteCommand('recalc', '')
+        doc["filename"].value = "'''+filename+'''"
+        doc["result"].html = "'''+filename+''' loaded!"
+    except:
+        doc["result"].html = "can not get '''+filename+'''!"
+    '''
+        else:
+            load_program = ""
+
+        part2 = '''
+    </script>
+    filename: <input id="filename">
+    <button id="get_prog">get prog file</button><br />
+    <div id="result">(empty)</div><br />
+    <button id="doreload">do reload</button>
+    <button id="get_radio">load selected program</button><br />
+    '''
+        adm2 = '''
+    <button id="show_save">顯示內容</button>
+    <button id="save_program";>save program</button>
+    overwrite<input type="checkbox" id="set_overwrite">
+    <br /><!-- add delete_program button and two double checkboxs 6/7 -->
+    <button id="delete_program">delete program</button>
+    sure to delete1<input type="checkbox" id="set_delete1">
+    sure to delete2<input type="checkbox" id="set_delete2"><br />
+    '''
+        part3 = '''
+    </body>
+    </html>
+    '''
+        #return part1+adm1+load_program+part2+adm2+part3
+        if not self.isAdmin():
+            # for not admin
+            return part1+load_program+part2+self.load_list(item_per_page, page, "calc")+part3
+        else:
+            # for admin
+            return part1+adm1+load_program+part2+adm2+self.load_list(item_per_page, page, "calc")+part3
+
     #@+node:2014pythonE.20140329072748.2053: *3* ucrobot
     @cherrypy.expose
     def ucrobot(self):
@@ -1959,7 +2211,10 @@ application_conf = {'/static':{
         'tools.staticdir.dir': data_dir+"/downloads"},
         '/brython_programs':{
         'tools.staticdir.on': True,
-        'tools.staticdir.dir': data_dir+"/brython_programs"}
+        'tools.staticdir.dir': data_dir+"/brython_programs"},
+        '/calc_programs':{
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': data_dir+"/calc_programs"}
     }
 
 # if inOpenshift ('OPENSHIFT_REPO_DIR' exists in environment variables) or not inOpenshift

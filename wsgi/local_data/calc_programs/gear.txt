@@ -13,20 +13,25 @@ part:audit
 Content-type: text/plain; charset=UTF-8
 
 version:1.5
-cell:A1:vt:th:<img src="http\c//dodo.inm.ras.ru/research/_media/grids/gear-cad.png" width="150"></img>
-cell:B1:t:正齒輪
-sheet:c:2:r:1
+cell:A1:t:gear:b:1:1:1:1
+cell:B1:t:data:b:1:1:1:1
+cell:A2:b:1:1:1:1
+cell:B2:t:齒輪設計資料:b:1:1:1:1
+sheet:c:2:r:2
+border:1:1px solid rgb(0,0,0)
 --SocialCalcSpreadsheetControlSave
 Content-type: text/plain; charset=UTF-8
 
 version:1.0
-rowpane:0:20:31
-colpane:0:1:12
-ecell:C1
+rowpane:0:1:28
+colpane:0:1:16
+ecell:A2
 sort::-1:up::::
 --SocialCalcSpreadsheetControlSave
 Content-type: text/plain; charset=UTF-8
 
-set A1 text th <img src="http\c//dodo.inm.ras.ru/research/_media/grids/gear-cad.png" width="150"></img>
-set B1 text t 正齒輪
+set A1:B2 bt 1px solid rgb(0,0,0)
+set A1:B2 br 1px solid rgb(0,0,0)
+set A1:B2 bb 1px solid rgb(0,0,0)
+set A1:B2 bl 1px solid rgb(0,0,0)
 --SocialCalcSpreadsheetControlSave--
