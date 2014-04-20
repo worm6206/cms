@@ -2343,7 +2343,6 @@ if (!newfile.Status) {
     <script>
     var gProcessor = null;
     var editor = null;
-    var _csg_baseurl="/static/openjscad/";
     var _includePath = "/static/openjscad/";
 
     function onload() {
@@ -2435,7 +2434,10 @@ application_conf = {'/static':{
         'tools.staticdir.dir': data_dir+"/brython_programs"},
         '/calc_programs':{
         'tools.staticdir.on': True,
-        'tools.staticdir.dir': data_dir+"/calc_programs"}
+        'tools.staticdir.dir': data_dir+"/calc_programs"},
+        '/openjscad':{
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': _curdir+"/static/openjscad"}
     }
 
 # if inOpenshift ('OPENSHIFT_REPO_DIR' exists in environment variables) or not inOpenshift
