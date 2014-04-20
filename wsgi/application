@@ -2171,12 +2171,12 @@ if (!newfile.Status) {
     <html><head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
     <title>OpenJSCAD.org</title>
-    <link rel="stylesheet" href="/static/openjscad/jquery/themes/base/jquery-ui.css" />
-    <script src="/static/openjscad/jquery/jquery-1.9.1.js"></script>
-    <script src="/static/openjscad/jquery/jquery-ui.js"></script>
-    <script src="/static/openjscad/jquery/jquery.hammer.js"></script>
-    <link rel="stylesheet" href="/static/openjscad/style.css" type="text/css">
-    <link rel="stylesheet" href="/static/openjscad/openjscad.css" type="text/css">
+    <link rel="stylesheet" href="/jquery/themes/base/jquery-ui.css" />
+    <script src="/jquery/jquery-1.9.1.js"></script>
+    <script src="/jquery/jquery-ui.js"></script>
+    <script src="/jquery/jquery.hammer.js"></script>
+    <link rel="stylesheet" href="/style.css" type="text/css">
+    <link rel="stylesheet" href="/openjscad.css" type="text/css">
     </head>
     <body onload="onload()">
     <style>
@@ -2190,12 +2190,12 @@ if (!newfile.Status) {
        font-size: 10pt;     // -- not 'px', but 'pt' for high dpi screens
     }
     </style>
-    <script src="/static/openjscad/lightgl.js"></script>
-    <script src="/static/openjscad/csg.js"></script>
-    <script src="/static/openjscad/openjscad.js"></script>
-    <script src="/static/openjscad/openscad.js"></script>
-    <script src="/static/openjscad/underscore.js"></script>
-    <script src="/static/openjscad/openscad-openjscad-translator.js"></script>
+    <script src="/lightgl.js"></script>
+    <script src="/csg.js"></script>
+    <script src="/openjscad.js"></script>
+    <script src="/openscad.js"></script>
+    <script src="/underscore.js"></script>
+    <script src="/openscad-openjscad-translator.js"></script>
     <script lang=JavaScript>
     var version = '0.017 (2014/02/14)';
     var me = document.location.toString().match(/^file:/)?'web-offline':'web-online'; // me: {cli, web-offline, web-online}
@@ -2338,12 +2338,12 @@ if (!newfile.Status) {
     <div id="statusdiv"></div>
     <div id="errordiv"></div>
     </div>
-    <!--<script src="/static/openjscad/ace/ace.js" type="text/javascript" charset="utf-8"></script>-->
+    <!--<script src="/ace/ace.js" type="text/javascript" charset="utf-8"></script>-->
     <script src="https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
     <script>
     var gProcessor = null;
     var editor = null;
-    var _includePath = "/static/openjscad/";
+    var _includePath = "/";
 
     function onload() {
        // -- http://ace.ajax.org/#nav=howto
@@ -2435,7 +2435,7 @@ application_conf = {'/static':{
         '/calc_programs':{
         'tools.staticdir.on': True,
         'tools.staticdir.dir': data_dir+"/calc_programs"},
-        '/openjscad':{
+        '/':{
         'tools.staticdir.on': True,
         'tools.staticdir.dir': _curdir+"/static/openjscad"}
     }
