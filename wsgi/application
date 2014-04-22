@@ -753,8 +753,10 @@ class CMSimply(object):
                 return outstring
     #@+node:cmsxh.20131226100304.3689: *3* isAdmin
     def isAdmin(self):
-        if cherrypy.session.get('admin') == 1:
-            return True
+        admin = cherrypy.session.get('admin')
+        if admin:
+            if admin == 1:
+                return True
         else:
             return False
     #@+node:cmsxh.20131226100304.3690: *3* edit_page
