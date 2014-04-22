@@ -603,18 +603,16 @@ def sizeof_fmt(num):
     return "%3.1f %s" % (num, 'tb')
 #@+node:cmsxh.20131226100304.3682: ** class CMSimply
 class CMSimply(object):
-    '''
     _cp_config = {
     # if there is no utf-8 encoding, no Chinese input available
     'tools.encode.encoding': 'utf-8',
     'tools.sessions.on' : True,
     'tools.sessions.storage_type' : 'file',
-    'tools.sessions.locking' : 'explicit',
+    #'tools.sessions.locking' : 'explicit',
     'tools.sessions.storage_path' : data_dir+'/tmp',
     # session timeout is 60 minutes
     'tools.sessions.timeout' : 60
     }
-    '''
     
     #@+others
     #@+node:cmsxh.20140211204322.1703: *3* __init__
@@ -2423,14 +2421,6 @@ root.download = Download()
 
 # setup static, images and downloads directories
 application_conf = {
-        # if there is no utf-8 encoding, no Chinese input available
-        'tools.encode.encoding': 'utf-8',
-        'tools.sessions.on' : True,
-        'tools.sessions.storage_type' : 'file',
-        #'tools.sessions.locking' : 'explicit',
-        'tools.sessions.storage_path' : data_dir+'/tmp',
-        # session timeout is 60 minutes
-        'tools.sessions.timeout' : 60,
         '/static':{
         'tools.staticdir.on': True,
         'tools.staticdir.dir': _curdir+"/static"},
