@@ -2139,7 +2139,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with CMSimpiy. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
+along with CMSimply. If not, see &lt;http://www.gnu.org/licenses/&gt;.</t>
 <t tx="cmsxh.20140108172857.2428">version on public-cmsimply.rhcloud.com
 </t>
 <t tx="cmsxh.20140212132226.1610">1. in SSL mode no arrow for menu - modified to use local jquery.js file
