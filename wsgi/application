@@ -176,6 +176,8 @@ def parse_content():
     subject = re.sub('#@CMSIMPLY_SPLIT@#', '井@CMSIMPLY_SPLIT@井', subject)
     content_sep = '#@CMSIMPLY_SPLIT@#'
     head_level = 3
+    # remove all attribute inside h1, h2 and h3 tags
+    subject = re.sub('<(h1|h2|h3)[^>]*>', r'<\1>', subject, flags=re.I)
     content = re.split('</body>', subject)
     result = re.sub('<h[1-'+str(head_level)+']>', content_sep, content[0])
     # remove the first element contains html and body tags
