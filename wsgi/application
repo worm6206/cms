@@ -650,6 +650,8 @@ class CMSimply(object):
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
         head, level, page = parse_content()
+        raise cherrypy.HTTPRedirect("/get_page?heading="+head[0])
+        # the following will never execute
         directory = render_menu(head, level, page)
         if heading == None:
             heading = head[0]
