@@ -23,6 +23,7 @@
 <v t="cmsxh.20140212132226.1612"><vh>Delete tmp session files</vh></v>
 <v t="cmsxh.20131226100304.5426"><vh>about textile</vh></v>
 <v t="2014pythonE.20140312072052.1942"><vh>about syntaxhighlight</vh></v>
+<v t="2014pythonE.20140424170033.3315"><vh>about duplicate heading</vh></v>
 <v t="2014pythonE.20140313091306.1898"><vh>Brython ajax</vh></v>
 <v t="2014pythonE.20140313212213.1898" a="E"><vh>CherryPy ajax example</vh>
 <v t="2014pythonE.20140313212213.1899"><vh>another example</vh></v>
@@ -1999,6 +2000,13 @@ function main(params){
 	w.push(mouth(mouth_width,mouth_height,-3*mouth_position ).translate([0, -body_depth_bottom/2.5, body_height*mouth_position]));
 	return union(w).rotateZ(params.body_rotation);
 }</t>
+<t tx="2014pythonE.20140424170033.3315">We need a new mechanism to identify page, right now we use heading to identify different page content, this will end up with no duplicated page heading allowed.
+
+If we gave each page a unique number, and save these numbers in a seperated file to incorporate with content.htm, may we solve the no duplicated page heading allowed problem?
+
+Or should we seperate the edit mode and read mode, under edit mode heading order is used to identify the page, and after editing pure html will be generated for user and search engine reading.
+
+Page template can be imposed into action during the site html generation period.</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 
