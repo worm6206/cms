@@ -2192,10 +2192,11 @@ if (!newfile.Status) {
     </body>
     </html>
     '''
-        #return part1+adm1+load_program+part2+adm2+part3
+        # only admin can view and edit calc
         if not self.isAdmin():
+            raise cherrypy.HTTPRedirect("/login")
             # for not admin
-            return part1+load_program+part2+self.load_list(item_per_page, page, "calc")+part3
+            #return part1+load_program+part2+self.load_list(item_per_page, page, "calc")+part3
         else:
             # for admin
             return part1+adm1+load_program+part2+adm2+self.load_list(item_per_page, page, "calc")+part3
