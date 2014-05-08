@@ -666,7 +666,8 @@ class CMSimply(object):
     @cherrypy.expose
     def index(self, heading=None, *args, **kwargs):
         head, level, page = parse_content()
-        raise cherrypy.HTTPRedirect("/get_page?heading="+head[0])
+        # fix first Chinese heading error
+        raise cherrypy.HTTPRedirect("/get_page?heading=")
         # the following will never execute
         directory = render_menu(head, level, page)
         if heading == None:
@@ -2192,7 +2193,7 @@ if (!newfile.Status) {
     </body>
     </html>
     '''
-        # only admin can view and edit calc
+        # only admin can view and edit calc, we still need to find a way to protect programs on calc_programs
         if not self.isAdmin():
             raise cherrypy.HTTPRedirect("/login")
             # for not admin
