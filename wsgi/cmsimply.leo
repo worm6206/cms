@@ -25,6 +25,7 @@
 <v t="2014pythonE.20140312072052.1942"><vh>about syntaxhighlight</vh></v>
 <v t="2014pythonE.20140424170033.3315"><vh>about duplicate heading</vh></v>
 <v t="2014pythonE.20140313091306.1898"><vh>Brython ajax</vh></v>
+<v t="2014spring.20140605210826.1877"><vh>errors</vh></v>
 <v t="2014pythonE.20140313212213.1898" a="E"><vh>CherryPy ajax example</vh>
 <v t="2014pythonE.20140313212213.1899"><vh>another example</vh></v>
 <v t="2014pythonE.20140313212213.1902"><vh>reference site</vh></v>
@@ -2007,6 +2008,8 @@ If we gave each page a unique number, and save these numbers in a seperated file
 Or should we seperate the edit mode and read mode, under edit mode heading order is used to identify the page, and after editing pure html will be generated for user and search engine reading.
 
 Page template can be imposed into action during the site html generation period.</t>
+<t tx="2014spring.20140605210826.1877">2014.06.06 以並列重複標題的方式來解決問題
+而重複標題頁面的編輯則自動跳轉到所有頁面編輯畫面, 讓使用者決定要如何處理.</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 

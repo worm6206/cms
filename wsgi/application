@@ -178,8 +178,42 @@ def file_get_contents(filename):
         return file.read()
 #@+node:cmsxh.20131226100304.3667: ** search_content
 # use head title to search page content
+'''
+# search_content(head, page, search)
+# 從 head 與 page 數列中, 以 search 關鍵字進行查詢
+# 原先傳回與 search 關鍵字頁面對應的頁面內容
+# 現在則傳回多重的頁面次序與頁面內容數列
+find = lambda searchList, elem: [[i for i, x in enumerate(searchList) if x == e] for e in elem]
+head = ["標題一","標題二","標題三","標題一","標題四","標題五"]
+search_result = find(head,["標題一"])[0]
+page_order = []
+page_content = []
+for i in range(len(search_result)):
+    # 印出次序
+    page_order.append(search_result[i])
+    # 標題為 head[search_result[i]]
+    #  頁面內容則為 page[search_result[i]]
+    page_content.append(page[search_result[i]])
+    # 從 page[次序] 印出頁面內容
+# 準備傳回 page_order 與 page_content 等兩個數列
+'''
 def search_content(head, page, search):
+    ''' 舊內容
     return page[head.index(search)]
+    '''
+    find = lambda searchList, elem: [[i for i, x in enumerate(searchList) if x == e] for e in elem]
+    search_result = find(head,[search])[0]
+    page_order = []
+    page_content = []
+    for i in range(len(search_result)):
+        # 印出次序
+        page_order.append(search_result[i])
+        # 標題為 head[search_result[i]]
+        #  頁面內容則為 page[search_result[i]]
+        page_content.append(page[search_result[i]])
+        # 從 page[次序] 印出頁面內容
+    # 準備傳回 page_order 與 page_content 等兩個數列
+    return page_order, page_content
 #@+node:cmsxh.20131226100304.3668: ** parse_content
 def parse_content():
     if not os.path.isfile(data_dir+"content.htm"):
@@ -689,23 +723,25 @@ class CMSimply(object):
         directory = render_menu(head, level, page)
         if heading == None:
             heading = head[0]
-        page_order = head.index(heading)
-        if page_order == 0:
-            last_page = ""
-        else:
-            last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
-        if page_order == len(head) - 1:
-            # no next page
-            next_page = ""
-        else:
-            next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
-        if heading == None:
-            #  while there is no content in content.htm
-            return self.set_css()+"<div class='container'><nav>"+ \
-            directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+head[0]+"</h1>"+search_content(head, page, head[0])+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
-        else:
-            return self.set_css()+"<div class='container'><nav>"+ \
-            directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+search_content(head, page, heading)+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+        # 因為同一 heading 可能有多頁, 因此不可使用 head.index(heading) 搜尋 page_order
+        page_order_list, page_content_list = search_content(head, page, heading)
+        return_content = ""
+        for i in range(len(page_order_list)):
+            #page_order = head.index(heading)
+            page_order = page_order_list[page_order_list[i]]
+            if page_order == 0:
+                last_page = ""
+            else:
+                last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
+            if page_order == len(head) - 1:
+                # no next page
+                next_page = ""
+            else:
+                next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
+            return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[page_order_list[i]]+"<br />"+last_page+" "+next_page
+
+        return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section>"+return_content+"</section></div></body></html>"
 
 
     #@+node:cmsxh.20131226100304.3684: *3* default
@@ -755,6 +791,7 @@ class CMSimply(object):
     def get_page(self, heading=None, edit=0, *args, **kwargs):
         head, level, page = parse_content()
         directory = render_menu(head, level, page)
+        '''
         try:
             pagecontent = search_content(head, page, heading)
             page_order = head.index(heading)
@@ -772,23 +809,58 @@ class CMSimply(object):
             next_page = ""
         else:
             next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
+        '''
+        if heading == None:
+            heading = head[0]
+        # 因為同一 heading 可能有多頁, 因此不可使用 head.index(heading) 搜尋 page_order
+        page_order_list, page_content_list = search_content(head, page, heading)
+        return_content = ""
+        pagedata = ""
+        outstring = ""
+        for i in range(len(page_order_list)):
+            #page_order = head.index(heading)
+            page_order = page_order_list[i]
+            if page_order == 0:
+                last_page = ""
+            else:
+                last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
+            if page_order == len(head) - 1:
+                # no next page
+                next_page = ""
+            else:
+                next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
+            if len(page_order_list) > 1:
+                return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[i]+"<br />"+last_page+" "+next_page+"<br /><hr>"
+            else:
+                return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[i]+"<br />"+last_page+" "+next_page
+                
+            pagedata += "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+page_content_list[i]
+            outstring += last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata), page_order)
         
         # edit=0 for viewpage
         if edit == 0:
+            '''
             if heading == None:
                 return page[0]
             else:
                 return self.set_css()+"<div class='container'><nav>"+ \
                 directory+"</nav><section>"+last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+pagecontent+"<br />"+last_page+" "+next_page+"</section></div></body></html>"
+            '''
+            return self.set_css()+"<div class='container'><nav>"+ \
+            directory+"</nav><section>"+return_content+"</section></div></body></html>"
         # enter edit mode
         else:
             # check if administrator
             if not self.isAdmin():
                 raise cherrypy.HTTPRedirect("login")
             else:
-                pagedata = "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+search_content(head, page, heading)
-                outstring = last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata), page_order)
-                return outstring
+                if len(page_order_list) > 1:
+                    # 若碰到重複頁面頁印, 且要求編即, 則導向 edit_page
+                    raise cherrypy.HTTPRedirect("edit_page")
+                else:
+                #pagedata = "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+search_content(head, page, heading)
+                #outstring = last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata), page_order)
+                    return outstring
     #@+node:cmsxh.20131226100304.3689: *3* isAdmin
     def isAdmin(self):
         if cherrypy.session.get('admin') == 1:
@@ -857,6 +929,8 @@ class CMSimply(object):
         file.close()
         '''
         # go back to origin edit status
+        # here the content is modified, we need to parse the new page_content again
+        head, level, page = parse_content()
         edit_url = "get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
         raise cherrypy.HTTPRedirect(edit_url)
     #@+node:2014pythonE.20140321113009.1826: *3* save_program
