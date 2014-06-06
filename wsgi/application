@@ -817,6 +817,9 @@ class CMSimply(object):
         return_content = ""
         pagedata = ""
         outstring = ""
+        outstring_duplicate = ""
+        pagedata_duplicate = ""
+        outstring_list = []
         for i in range(len(page_order_list)):
             #page_order = head.index(heading)
             page_order = page_order_list[i]
@@ -831,6 +834,8 @@ class CMSimply(object):
                 next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
             if len(page_order_list) > 1:
                 return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[i]+"<br />"+last_page+" "+next_page+"<br /><hr>"
+                pagedata_duplicate = "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+page_content_list[i]
+                outstring_list.append(last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata_duplicate), page_order))
             else:
                 return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[i]+"<br />"+last_page+" "+next_page
                 
@@ -856,7 +861,10 @@ class CMSimply(object):
             else:
                 if len(page_order_list) > 1:
                     # 若碰到重複頁面頁印, 且要求編即, 則導向 edit_page
-                    raise cherrypy.HTTPRedirect("edit_page")
+                    #raise cherrypy.HTTPRedirect("edit_page")
+                    for i in range(len(page_order_list)):
+                        outstring_duplicate += outstring_list[i]+"<br /><hr>"
+                    return outstring_duplicate
                 else:
                 #pagedata = "<h"+level[page_order]+">"+heading+"</h"+level[page_order]+">"+search_content(head, page, heading)
                 #outstring = last_page+" "+next_page+"<br />"+ tinymce_editor(directory, cgi.escape(pagedata), page_order)
