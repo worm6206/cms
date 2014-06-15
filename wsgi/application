@@ -143,7 +143,7 @@ window.location= 'https://' + location.host + location.pathname + location.searc
 </head><header><h1>'''+site_title+'''</h1> \
 <confmenu>
 <ul>
-<li><a href="">Home</a></li>
+<li><a href="/">Home</a></li>
 <li><a href="sitemap">SiteMap</a></li>
 <li><a href="edit_page">Edit All</a></li>
 <li><a href="'''+cherrypy.url(qs=cherrypy.request.query_string)+'''&edit=1">Edit</a></li>
@@ -216,13 +216,20 @@ def search_content(head, page, search):
     return page_order, page_content
 #@+node:cmsxh.20131226100304.3668: ** parse_content
 def parse_content():
+    # if no content.htm, generate a head 1 and content 1 file
     if not os.path.isfile(data_dir+"content.htm"):
         # create content.htm if there is no content.htm
         File = open(data_dir+"content.htm", "w", encoding="utf-8")
         File.write("<h1>head 1</h1>content 1")
         File.close()
     subject = file_get_contents(data_dir+"content.htm")
-    # deal with content without heading
+    # deal with content without content
+    if subject == "":
+        # create content.htm if there is no content.htm
+        File = open(data_dir+"content.htm", "w", encoding="utf-8")
+        File.write("<h1>head 1</h1>content 1")
+        File.close()
+    # deal with content has content but no heading
     # replace subject content with special seperate string to avoid error 
     subject = re.sub('#@CMSIMPLY_SPLIT@#', '井@CMSIMPLY_SPLIT@井', subject)
     content_sep = '#@CMSIMPLY_SPLIT@#'
@@ -718,7 +725,7 @@ class CMSimply(object):
     def index(self, heading=None, *args, **kwargs):
         head, level, page = parse_content()
         # fix first Chinese heading error
-        raise cherrypy.HTTPRedirect("get_page?heading=")
+        raise cherrypy.HTTPRedirect("get_page?heading="+head[0])
         # the following will never execute
         directory = render_menu(head, level, page)
         if heading == None:
@@ -1642,7 +1649,7 @@ if (!newfile.Status) {
     </head><header><h1>'''+site_title+'''</h1> \
     <confmenu>
     <ul>
-    <li><a href="">Home</a></li>
+    <li><a href="/">Home</a></li>
     <li><a href="sitemap">Site Map</a></li>
     '''
         if self.isAdmin():

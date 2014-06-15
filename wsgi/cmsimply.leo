@@ -2011,7 +2011,11 @@ Page template can be imposed into action during the site html generation period.
 <t tx="2014spring.20140605210826.1877">2014.06.06 以並列重複標題的方式來解決問題
 而重複標題頁面的編輯則自動跳轉到所有頁面編輯畫面, 讓使用者決定要如何處理.
 
-有無可能, 使用者可以透過 page_order 單獨編輯特定的重複標題頁面?</t>
+有無可能, 使用者可以透過 page_order 單獨編輯特定的重複標題頁面?
+
+We need custom error pages!
+
+2014.06.10 處理 edit_page 儲存空白 content.htm 時之後的 parse 錯誤</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 
