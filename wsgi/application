@@ -1374,7 +1374,7 @@ remotePath:function(){
                 outstring += "<a href='"
                 outstring += "/"+filedir+"?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
                 outstring += "'>Previous</a> "
-            span = 10
+            span = 5
             for index in range(int(page)-span, int(page)+span):
             #for ($j=$page-$range;$j<$page+$range;$j++)
                 if index >=0 and index < totalpage:
@@ -1976,43 +1976,43 @@ if (!newfile.Status) {
     </div>
     -->
     <div id="container">
-    <div id="left-div">
-    <div style="padding: 3px 3px 3px 3px;">
-    Theme: <select id="ace_theme">
-    <optgroup label="Bright">
-    <option value="ace/theme/chrome">Chrome</option>
-    <option value="ace/theme/crimson_editor">Crimson Editor</option>
-    <option value="ace/theme/eclipse">Eclipse</option>
-    <option value="ace/theme/github">GitHub</option>
-    </optgroup>
-    <optgroup label="Dark">
-    <option value="ace/theme/cobalt">Cobalt</option>
-    <option value="ace/theme/idle_fingers">idleFingers</option>
-    <option value="ace/theme/monokai">Monokai</option>
-    <option value="ace/theme/pastel_on_dark">Pastel on dark</option>
-    <option value="ace/theme/vibrant_ink">Vibrant Ink</option>
-    </optgroup>
-    </select> 
-    </div>
-      <div id="editor"></div>
+        <div id="left-div">
+        <div style="padding: 3px 3px 3px 3px;">
+        
+          <div style="float:center">
+            <button id="show_console">Console</button>
+            <button id="show_js">Javascript</button>
+          </div>
+        </div>
+        <div style="width:100%;height:100%;">
+        <textarea id="console"></textarea>
+        </div>
     </div>
 
     <div id="right-div">
-    <div style="padding: 3px 3px 3px 3px;">
-      <div style="float:left">
-        <button id="run">run</button>
-        <button id="run_js">run Javascript</button>
-        debug<input type="checkbox" id="set_debug" checked>
-      </div>
-
-      <div style="float:right">
-        <button id="show_console">Console</button>
-        <button id="show_js">Javascript</button>
-      </div>
-    </div>
-    <div style="width:100%;height:100%;">
-    <textarea id="console"></textarea>
-    </div>
+        <div style="padding: 3px 3px 3px 3px;">
+            <div style="float:left">
+            <button id="run">run</button>
+            <button id="run_js">run Javascript</button>
+            debug<input type="checkbox" id="set_debug" checked>
+            </div>
+        Theme: <select id="ace_theme">
+        <optgroup label="Bright">
+        <option value="ace/theme/chrome">Chrome</option>
+        <option value="ace/theme/crimson_editor">Crimson Editor</option>
+        <option value="ace/theme/eclipse">Eclipse</option>
+        <option value="ace/theme/github">GitHub</option>
+        </optgroup>
+        <optgroup label="Dark">
+        <option value="ace/theme/cobalt">Cobalt</option>
+        <option value="ace/theme/idle_fingers">idleFingers</option>
+        <option value="ace/theme/monokai">Monokai</option>
+        <option value="ace/theme/pastel_on_dark">Pastel on dark</option>
+        <option value="ace/theme/vibrant_ink">Vibrant Ink</option>
+        </optgroup>
+        </select> 
+        </div>
+          <div id="editor"></div>
     </div>
 
     <div style="float:left;margin-top:50px;">
