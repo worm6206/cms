@@ -1321,6 +1321,7 @@ remotePath:function(){
         if keyword == None:
             pass
         else:
+            cherrypy.session['search_keyword'] = keyword
             files = [s for s in files if keyword in s]
         total_rows = len(files)
         totalpage = math.ceil(total_rows/int(item_per_page))
@@ -1351,11 +1352,11 @@ remotePath:function(){
                 notlast = True
             if int(page) > 1:
                 outstring += "<a href='"
-                outstring += "brython?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "brython?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>{{</a> "
                 page_num = int(page) - 1
                 outstring += "<a href='"
-                outstring += "brython?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "brython?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>Previous</a> "
             span = 10
             for index in range(int(page)-span, int(page)+span):
@@ -1365,16 +1366,16 @@ remotePath:function(){
                         outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
                     else:
                         outstring += "<a href='"
-                        outstring += "brython?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                        outstring += "brython?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                         outstring += "'>"+str(page_now)+"</a> "
 
             if notlast == True:
                 nextpage = int(page) + 1
                 outstring += " <a href='"
-                outstring += "brython?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "brython?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>Next</a>"
                 outstring += " <a href='"
-                outstring += "brython?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "brython?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>}}</a><br /><br />"
             '''
             if (int(page) * int(item_per_page)) < total_rows:
@@ -1386,11 +1387,11 @@ remotePath:function(){
             
             if int(page) > 1:
                 outstring += "<a href='"
-                outstring += "/"+filedir+"?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page=1&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>{{</a> "
                 page_num = int(page) - 1
                 outstring += "<a href='"
-                outstring += "/"+filedir+"?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(page_num)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>Previous</a> "
             span = 5
             for index in range(int(page)-span, int(page)+span):
@@ -1401,15 +1402,15 @@ remotePath:function(){
                         outstring += "<font size='+1' color='red'>"+str(page)+" </font>"
                     else:
                         outstring += "<a href='"
-                        outstring += "/"+filedir+"?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                        outstring += "/"+filedir+"?&amp;page="+str(page_now)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                         outstring += "'>"+str(page_now)+"</a> "
             if notlast == True:
                 nextpage = int(page) + 1
                 outstring += " <a href='"
-                outstring += "/"+filedir+"?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(nextpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>Next</a>"
                 outstring += " <a href='"
-                outstring += "/"+filedir+"?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('download_keyword'))
+                outstring += "/"+filedir+"?&amp;page="+str(totalpage)+"&amp;item_per_page="+str(item_per_page)+"&amp;keyword="+str(cherrypy.session.get('search_keyword'))
                 outstring += "'>}}</a>"
         else:
             outstring += "no data!"
