@@ -687,7 +687,9 @@ class CMSimply(object):
     #'tools.sessions.locking' : 'explicit',
     'tools.sessions.storage_path' : data_dir+'/tmp',
     # session timeout is 60 minutes
-    'tools.sessions.timeout' : 60
+    'tools.sessions.timeout' : 60,
+    # poll rate for expired session cleanup in minutes
+    'tools.sessions.clean_freq': 30
     }
     
     #@+others
@@ -1761,7 +1763,7 @@ if (!newfile.Status) {
     <link rel="stylesheet" type="text/css" href="/static/brython.css">
     <script type="text/javascript" src="/static/Brython2.1.0-20140419-113919/brython.js"></script>
     <script src="https://togetherjs.com/togetherjs-min.js"></script>
-    <script src="https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript">
+    <script src="/static/ace/src-min-noconflict/ace.js" type="text/javascript">
     </script>
     <script src="/static/Cango2D.js" type="text/javascript">
     </script>
@@ -2642,7 +2644,7 @@ if (!newfile.Status) {
     <div id="statusdiv"></div>
     <div id="errordiv"></div>
     </div>
-    <!--<script src="/ace/ace.js" type="text/javascript" charset="utf-8"></script>-->
+    <!--<script src="https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>-->
     <script src="https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
     <script>
     var gProcessor = null;

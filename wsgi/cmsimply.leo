@@ -456,7 +456,15 @@ localStorage.clear();
 
 minijQyery Lab: http://www.darkthread.net/MiniJQueryLab/
 </t>
-<t tx="2014pythonE.20140420143435.2016"></t>
+<t tx="2014pythonE.20140420143435.2016">2014.06.20:
+
+right now the openjscad can only use the following ace.js which is older than ace 1.0.0
+
+https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js
+
+on https://github.com/ajaxorg/ace-builds/releases we may download the official release version
+
+BTW, /brython can use any ace.js version</t>
 <t tx="2014pythonE.20140420143435.2017">// title: Dodecahedron
 // author: OpenSCAD, adapted by Rene K. Mueller
 
