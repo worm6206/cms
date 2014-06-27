@@ -930,6 +930,7 @@ class CMSimply(object):
             return self.error_log("no content to save!")
         page_content = page_content.replace("\n","")
         head, level, page = parse_content()
+        original_head_title = head[int(page_order)]
         file = open(data_dir+"content.htm", "w", encoding="utf-8")
         for index in range(len(head)):
             if index == int(page_order):
@@ -938,13 +939,16 @@ class CMSimply(object):
                 file.write("<h"+str(level[index])+">"+str(head[index])+"</h"+str(level[index])+">"+str(page[index]))
         file.close()
 
-        # if head[int(page_order)] still existed, go back to origin edit status, otherwise got to "/"
+        # if head[int(page_order)] still existed and equal original_head_title, go back to origin edit status, otherwise go to "/"
         # here the content is modified, we need to parse the new page_content again
         head, level, page = parse_content()
-        try:
-            edit_url = "get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
+        # for debug
+        # print(original_head_title, head[int(page_order)])
+        if original_head_title == head[int(page_order)]:
+            #edit_url = "get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
+            edit_url = "get_page?heading="+urllib.parse.quote_plus(original_head_title)+"&edit=1"
             raise cherrypy.HTTPRedirect(edit_url)
-        except:
+        else:
             raise cherrypy.HTTPRedirect("/")
     #@+node:2014pythonE.20140321113009.1826: *3* save_program
     @cherrypy.expose
