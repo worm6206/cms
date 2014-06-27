@@ -937,19 +937,15 @@ class CMSimply(object):
             else:
                 file.write("<h"+str(level[index])+">"+str(head[index])+"</h"+str(level[index])+">"+str(page[index]))
         file.close()
-        '''
-        # need to parse_content() to eliminate duplicate heading
-        head, level, page = parse_content()
-        file = open(data_dir+"content.htm", "w", encoding="utf-8")
-        for index in range(len(head)):
-            file.write("<h"+str(level[index])+">"+str(head[index])+"</h"+str(level[index])+">"+str(page[index]))
-        file.close()
-        '''
-        # go back to origin edit status
+
+        # if head[int(page_order)] still existed, go back to origin edit status, otherwise got to "/"
         # here the content is modified, we need to parse the new page_content again
         head, level, page = parse_content()
-        edit_url = "get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
-        raise cherrypy.HTTPRedirect(edit_url)
+        try:
+            edit_url = "get_page?heading="+urllib.parse.quote_plus(head[int(page_order)])+"&edit=1"
+            raise cherrypy.HTTPRedirect(edit_url)
+        except:
+            raise cherrypy.HTTPRedirect("/")
     #@+node:2014pythonE.20140321113009.1826: *3* save_program
     @cherrypy.expose
     def save_program(self, filename=None, editor=None, overwrite=0, delete1=0, delete2=0):

@@ -464,7 +464,7 @@ https://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js
 
 on https://github.com/ajaxorg/ace-builds/releases we may download the official release version
 
-BTW, /brython can use any ace.js version</t>
+BTW, /brython can use any ace.js version (the version is package 06.09.2014)</t>
 <t tx="2014pythonE.20140420143435.2017">// title: Dodecahedron
 // author: OpenSCAD, adapted by Rene K. Mueller
 
