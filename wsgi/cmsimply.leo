@@ -2023,7 +2023,9 @@ Page template can be imposed into action during the site html generation period.
 
 We need custom error pages!
 
-2014.06.10 處理 edit_page 儲存空白 content.htm 時之後的 parse 錯誤</t>
+2014.06.10 處理 edit_page 儲存空白 content.htm 時之後的 parse 錯誤
+
+2014.07.06 擬解決 /brython 查詢關鍵字使用流程所產生的錯誤</t>
 <t tx="cmsxh.20131226100304.3660"></t>
 <t tx="cmsxh.20131226100304.3770">Ultrasimple Content Management System
 

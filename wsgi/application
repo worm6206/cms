@@ -1334,9 +1334,10 @@ remotePath:function(){
         var oform = document.forms["searchform"];
         // 取elements集合中 name 屬性為 keyword 的值
         var getKeyword = oform.elements.keyword.value;
-        if(getKeyword != ""){
+        // 改為若表單為空, 則列出全部資料
+        //if(getKeyword != ""){
             window.location = "?brython&keyword="+getKeyword;
-        }
+        //}
     }
     </script>
         <form name="searchform">
@@ -1633,7 +1634,7 @@ if (!newfile.Status) {
             directory = render_menu(head, level, page)
             match = ""
             for index in range(len(head)):
-                if keyword != "" and (keyword.lower() in page[index].lower() or \
+                if (keyword != "" or None) and (keyword.lower() in page[index].lower() or \
                 keyword.lower() in head[index].lower()): \
                     match += "<a href='get_page?heading="+head[index]+"'>"+head[index]+"</a><br />"
             return self.set_css()+"<div class='container'><nav>"+ \
