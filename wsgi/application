@@ -757,7 +757,7 @@ class CMSimply(object):
     # default method, if there is no corresponding method, cherrypy will redirect to default method
     # need *args and **kwargs as input variables for all possible URL links
     @cherrypy.expose
-    def default_void(self, attr='default', *args, **kwargs):
+    def default(self, attr='default', *args, **kwargs):
         raise cherrypy.HTTPRedirect("/")
     #@+node:cmsxh.20131230000041.1602: *3* error_log
     @cherrypy.expose
