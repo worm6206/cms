@@ -727,7 +727,7 @@ class CMSimply(object):
     def index(self, heading=None, *args, **kwargs):
         head, level, page = parse_content()
         # fix first Chinese heading error
-        raise cherrypy.HTTPRedirect("get_page?heading="+head[0])
+        raise cherrypy.HTTPRedirect("get_page?heading="+urllib.parse.quote_plus(head[0]))
         # the following will never execute
         directory = render_menu(head, level, page)
         if heading == None:
@@ -792,7 +792,7 @@ class CMSimply(object):
         if hashed_password == saved_password:
             cherrypy.session['admin'] = 1
             raise cherrypy.HTTPRedirect("edit_page")
-        raise cherrypy.HTTPRedirect("")
+        raise cherrypy.HTTPRedirect("/")
     #@+node:cmsxh.20131226100304.3688: *3* get_page
     # seperate page need heading and edit variables, if edit=1, system will enter edit mode
     # single page edit will use ssavePage to save content, it means seperate save page
