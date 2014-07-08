@@ -67,7 +67,6 @@
 <v t="cmsxh.20131226100304.3660" a="E"><vh>@path ./</vh>
 <v t="cmsxh.20131226100304.3661" a="E"
 expanded="cmsxh.20131226100304.3682,cmsxh.20131226100304.3709,"><vh>@file application</vh></v>
-<v t="cmsxh.20131226100304.3823"><vh>@edit .gitignore</vh></v>
 <v t="cmsxh.20131226100304.3820" a="E"><vh>@path static</vh>
 <v t="cmsxh.20131226100304.3821"><vh>@edit cmsimply.css</vh></v>
 <v t="cmsxh.20131226100304.3822"><vh>@edit axuploader.js</vh></v>
