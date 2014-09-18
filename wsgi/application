@@ -363,7 +363,7 @@ width : "800",
 height : "600",
 element_format : "html",
 language : "en",
-plugins : "autosave,pagebreak,style,layer,table,save,advimage,advlink,advhr,emotions,iespell,"
+plugins : "autolink,autosave,pagebreak,style,layer,table,save,advimage,advlink,advhr,emotions,iespell,"
         + "insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,"
         + "noneditable,visualchars,nonbreaking,xhtmlxtras,template,wordcount,media,lists,syntaxhl",
 
