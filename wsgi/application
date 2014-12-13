@@ -756,34 +756,7 @@ class CMSimply(object):
     #@+node:kevinyen.20141213232935.42: *3* index2
     @cherrypy.expose
     def index2(self, heading=None, *args, **kwargs):
-        head, level, page = parse_content()
-        # fix first Chinese heading error
-        raise cherrypy.HTTPRedirect("get_page?heading="+urllib.parse.quote_plus(head[0]))
-        # the following will never execute
-        directory = render_menu(head, level, page)
-        if heading == None:
-            heading = head[0]
-        # 因為同一 heading 可能有多頁, 因此不可使用 head.index(heading) 搜尋 page_order
-        page_order_list, page_content_list = search_content(head, page, heading)
-        return_content = ""
-        for i in range(len(page_order_list)):
-            #page_order = head.index(heading)
-            page_order = page_order_list[page_order_list[i]]
-            if page_order == 0:
-                last_page = ""
-            else:
-                last_page = head[page_order-1]+" << <a href='get_page?heading="+head[page_order-1]+"'>Previous</a>"
-            if page_order == len(head) - 1:
-                # no next page
-                next_page = ""
-            else:
-                next_page = "<a href='get_page?heading="+head[page_order+1]+"'>Next</a> >> "+ head[page_order+1]
-            return_content += last_page+" "+next_page+"<br /><h1>"+heading+"</h1>"+page_content_list[page_order_list[i]]+"<br />"+last_page+" "+next_page
-
-        return self.set_css()+"<div class='container'><nav>"+ \
-            directory+"</nav><section>"+return_content+"</section></div></body></html>"
-
-
+        return "index2"
     #@+node:cmsxh.20131226100304.3684: *3* default
     # default method, if there is no corresponding method, cherrypy will redirect to default method
     # need *args and **kwargs as input variables for all possible URL links
